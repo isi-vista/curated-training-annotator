@@ -8,6 +8,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.uima.UIMAException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.Banner;
@@ -89,9 +91,11 @@ public class GigawordIndexer implements CommandLineRunner {
 
   public GigawordIndexer() {}
 
+  private final Logger log = LoggerFactory.getLogger(getClass());
+
   public void run(String... args) {
 
-    System.out.println("GigawordIndexer is running...");
+    log.info("GigawordIndexer is running...");
 
     // TODO
     // parse gigaword
@@ -101,17 +105,17 @@ public class GigawordIndexer implements CommandLineRunner {
 
     // see a list of users
     List<User> users = userRepository.list();
-    System.out.println("Users:");
+    log.info("Users:");
     for (User user : users) {
-      System.out.println("	" + user.getUsername() + ":" + user.getPassword());
+      log.info("	" + user.getUsername() + ":" + user.getPassword());
     }
 
     // Check if authenticated
     Authentication a = SecurityContextHolder.getContext().getAuthentication();
-    System.out.println("Authentication: " + a);
+    log.info("Authentication: " + a);
 
     // Authenticate user (admin)
-    System.out.println("Authenticating user admin... ");
+    log.info("Authenticating user admin... ");
     UsernamePasswordAuthenticationToken authReq =
         new UsernamePasswordAuthenticationToken("admin", "admin");
     Authentication auth = authManager.authenticate(authReq);
@@ -119,13 +123,13 @@ public class GigawordIndexer implements CommandLineRunner {
 
     // Test current user is admin
     User user = userRepository.getCurrentUser();
-    System.out.println("Current user: " + user.getUsername());
+    log.info("Current user: " + user.getUsername());
 
     // List projects
-    System.out.println("List Projects: ");
+    log.info("List Projects: ");
     List<Project> projects = projectService.listAccessibleProjects(user);
     for (Project project : projects) {
-      System.out.println("	" + project.getName());
+      log.info("	" + project.getName());
     }
 
     // create and delete a project
@@ -138,7 +142,7 @@ public class GigawordIndexer implements CommandLineRunner {
       }
 
       // create a project
-      System.out.println("Creating project " + PROJECT_NAME_GW);
+      log.info("Creating project " + PROJECT_NAME_GW);
       Project project = new Project();
       project.setName(PROJECT_NAME_GW);
       project.setMode(WebAnnoConst.PROJECT_TYPE_ANNOTATION);
@@ -162,27 +166,30 @@ public class GigawordIndexer implements CommandLineRunner {
       // check project and document created
       if (projectService.existsProject(PROJECT_NAME_GW)) {
         Project projectGigawords = projectService.getProject(PROJECT_NAME_GW);
-        System.out.println(
+        log.info(
             "Project "
                 + projectGigawords.getName()
                 + " created on "
                 + projectGigawords.getCreated());
 
-        System.out.println("List documents under project " + projectGigawords);
+        log.info("List documents under project " + projectGigawords);
         List<SourceDocument> documents = documentService.listSourceDocuments(projectGigawords);
         Iterator<SourceDocument> itr = documents.iterator();
         while (itr.hasNext()) {
           SourceDocument doc = itr.next();
-          System.out.println("  " + doc.getName());
+          log.info("  " + doc.getName());
         }
 
         // delete project
         projectService.removeProject(projectGigawords);
-      } else System.out.println("Project " + PROJECT_NAME_GW + " not created.");
+      } else log.info("Project " + PROJECT_NAME_GW + " not created.");
 
     } catch (IOException e) {
+      log.error(
+          "Exception occured. Creating project without permission or removing a project that does not exist.");
       e.printStackTrace();
     } catch (UIMAException e) {
+      log.error("Conversion error when uploading a document");
       e.printStackTrace();
     }
   }
