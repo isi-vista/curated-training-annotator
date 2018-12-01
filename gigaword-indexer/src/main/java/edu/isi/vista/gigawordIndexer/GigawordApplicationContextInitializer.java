@@ -17,7 +17,8 @@ import de.tudarmstadt.ukp.clarin.webanno.support.logging.LoggingFilter;
 /**
  * @author jenniferchen
  *     <p>Initialize the application context. Load default settings defined by Webanno and activate
- *     bean profile (preAuthSecurity-context.xml or security-context.xml) depending on authentication mode (preauth or database).
+ *     bean profile (preAuthSecurity-context.xml or security-context.xml) depending on
+ *     authentication mode (preauth or database).
  */
 public class GigawordApplicationContextInitializer
     implements ApplicationContextInitializer<ConfigurableApplicationContext> {

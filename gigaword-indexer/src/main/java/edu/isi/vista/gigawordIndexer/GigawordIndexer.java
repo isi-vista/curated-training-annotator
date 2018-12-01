@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
 import java.util.List;
 
 import org.apache.uima.UIMAException;
@@ -103,13 +102,6 @@ public class GigawordIndexer implements CommandLineRunner {
     // create SourceDocuments
     // import document text
 
-    // see a list of users
-    List<User> users = userRepository.list();
-    log.info("Users:");
-    for (User user : users) {
-      log.info("	" + user.getUsername() + ":" + user.getPassword());
-    }
-
     // Check if authenticated
     Authentication a = SecurityContextHolder.getContext().getAuthentication();
     log.info("Authentication: " + a);
@@ -174,9 +166,7 @@ public class GigawordIndexer implements CommandLineRunner {
 
         log.info("List documents under project " + projectGigawords);
         List<SourceDocument> documents = documentService.listSourceDocuments(projectGigawords);
-        Iterator<SourceDocument> itr = documents.iterator();
-        while (itr.hasNext()) {
-          SourceDocument doc = itr.next();
+        for (SourceDocument doc : documents) {
           log.info("  " + doc.getName());
         }
 
@@ -195,10 +185,6 @@ public class GigawordIndexer implements CommandLineRunner {
   }
 
   public static void main(String[] args) {
-
-    //        SpringApplication app = new SpringApplication(GigawordIndexer.class);
-    //        app.setBannerMode(Banner.Mode.OFF);
-    //        app.run(args);
 
     SpringApplicationBuilder builder = new SpringApplicationBuilder();
     builder.properties("running.from.commandline=true");
