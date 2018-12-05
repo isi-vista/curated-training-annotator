@@ -29,8 +29,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.google.common.collect.ImmutableMap;
-
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
 import de.tudarmstadt.ukp.clarin.webanno.api.ProjectService;
@@ -47,6 +45,7 @@ import de.tudarmstadt.ukp.clarin.webanno.ui.annotation.AnnotationPageMenuItem;
 import de.tudarmstadt.ukp.clarin.webanno.ui.curation.page.CurationPageMenuItem;
 import de.tudarmstadt.ukp.clarin.webanno.ui.monitoring.page.AgreementPageMenuItem;
 import de.tudarmstadt.ukp.clarin.webanno.ui.monitoring.page.MonitoringPageMenuItem;
+import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
 
 @SpringBootApplication
 @ComponentScan(
@@ -150,21 +149,19 @@ public class GigawordIndexer implements CommandLineRunner {
         if (contentType != null && contentType.equalsIgnoreCase("application/gzip")
             || (FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
 
-          // parse out the articles from GZip file
-          ImmutableMap<String, String> articles = GigawordParserUtils.getArticlesFromGZipFile(file);
-
-          // create document for each articles and upload
-          Iterator<String> itr = articles.keySet().iterator();
-          while (itr.hasNext()) {
-            String docId = itr.next();
+          // get articles from GZip file
+          GigawordFileProcessor proc = new GigawordFileProcessor(file);
+          Iterator<Article> articles = proc.iterator();
+          while (articles.hasNext()) {
+            Article article = articles.next();
             SourceDocument sourceDocument = new SourceDocument();
-            sourceDocument.setName(docId);
+            sourceDocument.setName(article.getId());
             sourceDocument.setProject(project);
             sourceDocument.setFormat("text");
 
-            InputStream is = new ByteArrayInputStream(articles.get(docId).getBytes());
+            InputStream is = new ByteArrayInputStream(article.getText().getBytes());
             documentService.uploadSourceDocument(is, sourceDocument);
-            log.info("Document uploaded: {}", docId);
+            log.info("Document uploaded: {}", article.getId());
           }
         } else {
           log.error("Not a valid GZip file: {}", gzPath);
@@ -184,9 +181,6 @@ public class GigawordIndexer implements CommandLineRunner {
     } catch (UIMAException e) {
       log.error("Conversion error when uploading a document");
       e.printStackTrace();
-      System.exit(-1);
-    } catch (InvalidFormatException e) {
-      log.error("Invalid format: {}" + e.getMessage());
       System.exit(-1);
     }
   }
