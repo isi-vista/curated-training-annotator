@@ -5,9 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.uima.UIMAException;
@@ -30,6 +28,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import com.google.common.collect.ImmutableMap;
 
 import de.tudarmstadt.ukp.clarin.webanno.api.AnnotationSchemaService;
 import de.tudarmstadt.ukp.clarin.webanno.api.DocumentService;
@@ -101,12 +101,12 @@ public class GigawordIndexer implements CommandLineRunner {
 
     if (args.length == 0) {
       log.error("The file path to a Gigaword GZip file required");
-      System.exit(0);
+      System.exit(-1);
     }
 
     String gzPath = args[0];
     log.info("GigawordIndexer is running...");
-    log.info("Parsing Gigaword from file: " + gzPath);
+    log.info("Parsing Gigaword from file: {}", gzPath);
 
     // Authenticate user (admin)
     log.info("Authenticating user admin... ");
@@ -125,7 +125,7 @@ public class GigawordIndexer implements CommandLineRunner {
       }
 
       // create a project
-      log.info("Creating project " + PROJECT_NAME_GW);
+      log.info("Creating project {}", PROJECT_NAME_GW);
       Project project = new Project();
       project.setName(PROJECT_NAME_GW);
       project.setMode(WebAnnoConst.PROJECT_TYPE_ANNOTATION);
@@ -142,10 +142,7 @@ public class GigawordIndexer implements CommandLineRunner {
       if (projectService.existsProject(PROJECT_NAME_GW)) {
         Project projectGigawords = projectService.getProject(PROJECT_NAME_GW);
         log.info(
-            "Project "
-                + projectGigawords.getName()
-                + " created on "
-                + projectGigawords.getCreated());
+            "Project {} created on {}", projectGigawords.getName(), projectGigawords.getCreated());
 
         // parse gigaword articles
         File file = new File(gzPath);
@@ -154,8 +151,7 @@ public class GigawordIndexer implements CommandLineRunner {
             || (FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
 
           // parse out the articles from GZip file
-          HashMap<String, String> articles =
-              GigawordParserUtils.getArticlesFromGZipFile(file.getAbsolutePath());
+          ImmutableMap<String, String> articles = GigawordParserUtils.getArticlesFromGZipFile(file);
 
           // create document for each articles and upload
           Iterator<String> itr = articles.keySet().iterator();
@@ -168,29 +164,31 @@ public class GigawordIndexer implements CommandLineRunner {
 
             InputStream is = new ByteArrayInputStream(articles.get(docId).getBytes());
             documentService.uploadSourceDocument(is, sourceDocument);
-            log.info("Document uploaded: " + docId);
+            log.info("Document uploaded: {}", docId);
           }
+        } else {
+          log.error("Not a valid GZip file: {}", gzPath);
+          System.exit(-1);
         }
 
-        log.info("List documents under project " + projectGigawords);
-        List<SourceDocument> documents = documentService.listSourceDocuments(projectGigawords);
-        for (SourceDocument doc : documents) {
-          log.info("  " + doc.getName());
-        }
       } else {
-        log.info("Project " + PROJECT_NAME_GW + " not created.");
+        log.error("Project {} not created", PROJECT_NAME_GW);
+        System.exit(-1);
       }
 
     } catch (IOException e) {
       log.error(
           "Exception occured. Creating project without permission or removing a project that does not exist.");
       e.printStackTrace();
+      System.exit(-1);
     } catch (UIMAException e) {
       log.error("Conversion error when uploading a document");
       e.printStackTrace();
+      System.exit(-1);
+    } catch (InvalidFormatException e) {
+      log.error("Invalid format: {}" + e.getMessage());
+      System.exit(-1);
     }
-
-    System.exit(0);
   }
 
   public static void main(String[] args) {
@@ -208,6 +206,6 @@ public class GigawordIndexer implements CommandLineRunner {
         "spring.config.location="
             + "${inception.home:${user.home}/.inception}/settings.properties");
     builder.sources(GigawordIndexer.class);
-    builder.run(args);
+    builder.run(args).close();
   }
 }
