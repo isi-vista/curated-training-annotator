@@ -130,11 +130,11 @@ public class GigawordIndexer implements CommandLineRunner {
       project.setMode(WebAnnoConst.PROJECT_TYPE_ANNOTATION);
       projectService.createProject(project);
       projectService.createProjectPermission(
-          new ProjectPermission(project, "admin", PermissionLevel.ADMIN));
+          new ProjectPermission(project, "admin", PermissionLevel.MANAGER));
       projectService.createProjectPermission(
           new ProjectPermission(project, "admin", PermissionLevel.CURATOR));
       projectService.createProjectPermission(
-          new ProjectPermission(project, "admin", PermissionLevel.USER));
+          new ProjectPermission(project, "admin", PermissionLevel.ANNOTATOR));
       annotationSchemaService.initializeProject(project);
 
       // check project created
