@@ -22,8 +22,9 @@ public class GigawordFileProcessor {
   }
 
   public Iterator<Article> iterator() throws IOException {
-    if (fullText == null)
+    if (fullText == null) {
       fullText = GZIPByteSource.fromCompressed(file).asCharSource(StandardCharsets.UTF_8).read();
+    }
     return new ArticlesIterator(fullText);
   }
 
@@ -44,6 +45,11 @@ public class GigawordFileProcessor {
 
     public String getText() {
       return text;
+    }
+
+    @Override
+    public String toString() {
+      return "Article [id=" + id + ", text=" + text + "]";
     }
   }
 
@@ -66,7 +72,9 @@ public class GigawordFileProcessor {
     @Override
     protected Article computeNext() {
 
-      if (startNextSearchAt >= fullText.length()) return endOfData();
+      if (startNextSearchAt >= fullText.length()) {
+        return endOfData();
+      }
 
       // index of next end of document line start
       int endOfNextDocumentClosingElement =
