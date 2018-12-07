@@ -49,7 +49,7 @@ public class GigawordFileProcessor {
 
     @Override
     public String toString() {
-      return "Article [id=" + id + ", text=" + text + "]";
+      return "Article [id=" + id + ", text=" + text.substring(0, Math.min(100, text.length()-1)) + "]";
     }
   }
 
