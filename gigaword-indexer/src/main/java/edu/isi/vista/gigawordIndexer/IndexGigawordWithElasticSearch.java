@@ -34,54 +34,50 @@ public class IndexGigawordWithElasticSearch {
 
   private static final Logger log = LoggerFactory.getLogger(IndexGigawordWithElasticSearch.class);
 
-  private static final String DEFAULT_INDEX_NAME = "Gigaword";
-
   private static final String DEFAULT_HOST = "localhost";
 
   private static final int DEFAULT_PORT_PRI = 9200;
 
   private static final int DEFAULT_PORT_SEC = 9201;
 
-  private static final String PARAM_FILEPATH = "filePath";
+  private static final String PARAM_GIGAWORD_FILEPATH = "gigawordFilePath";
 
   private static final String PARAM_INDEX_NAME = "indexName";
 
-  private static final String PARAM_HOSTNAME_PRI = "primaryHostName";
+  private static final String PARAM_HOSTNAME_PRIMARY = "primaryHostName";
 
-  private static final String PARAM_HOSTNAME_SEC = "secondaryHostName";
+  private static final String PARAM_HOSTNAME_SECONDARY = "secondaryHostName";
 
-  private static final String PARAM_PORT_PRI = "primaryPort";
+  private static final String PARAM_PORT_PRIMARY = "primaryPort";
 
-  private static final String PARAM_PORT_SEC = "secondaryPort";
+  private static final String PARAM_PORT_SECONDARY = "secondaryPort";
 
-  /**
-   * @param argv takes two arguments, a path to the GZip file and an index name
-   * @throws IOException
-   */
+
   public static void main(String[] argv) throws IOException {
 
     // get parameter file
-    final Parameters parameters;
+    Parameters parameters = null;
 
     if (argv.length > 0) {
       parameters = Parameters.loadSerifStyle(new File(argv[0]));
     } else {
-      log.error("Input file required");
-      return;
+      log.error("Expected one argument, a parameter file.");
+      System.exit(1);
     }
 
     // validate and parse inputs
-    parameters.assertExactlyOneDefined(PARAM_FILEPATH);
+    parameters.assertExactlyOneDefined(PARAM_GIGAWORD_FILEPATH);
+    parameters.assertExactlyOneDefined(PARAM_INDEX_NAME);
 
-    String indexName = parameters.getOptionalString(PARAM_INDEX_NAME).or(DEFAULT_INDEX_NAME);
-    File file = parameters.getExistingFile(PARAM_FILEPATH);
+    String indexName = parameters.getString(PARAM_INDEX_NAME);
+    File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
 
-    String contentType = Files.probeContentType(file.toPath());
+    String contentType = Files.probeContentType(concatenatedFileToIndex.toPath());
     if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
         || (contentType == null
-            && !FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
-      log.error("{} is not a valid GZip file", file.getAbsolutePath());
-      return;
+            && !FilenameUtils.getExtension(concatenatedFileToIndex.getName()).equalsIgnoreCase("gz"))) {
+      log.error("{} is not a valid GZip file", concatenatedFileToIndex.getAbsolutePath());
+      System.exit(1);
     }
 
     // start indexing
@@ -91,34 +87,34 @@ public class IndexGigawordWithElasticSearch {
           new RestHighLevelClient(
               RestClient.builder(
                   new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_PRI).or(DEFAULT_HOST),
-                      parameters.getOptionalPositiveInteger(PARAM_PORT_PRI).or(DEFAULT_PORT_PRI),
+                      parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
+                      parameters.getOptionalPositiveInteger(PARAM_PORT_PRIMARY).or(DEFAULT_PORT_PRI),
                       "http"),
                   new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_SEC).or(DEFAULT_HOST),
-                      parameters.getOptionalPositiveInteger(PARAM_PORT_SEC).or(DEFAULT_PORT_SEC),
+                      parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
+                      parameters.getOptionalPositiveInteger(PARAM_PORT_SECONDARY).or(DEFAULT_PORT_SEC),
                       "http")));
 
       // indexing
-      index(client, file, indexName);
+      index(client, concatenatedFileToIndex, indexName);
       client.close();
 
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
-      return;
+      System.exit(1);;
     }
   }
 
   public static void index(RestHighLevelClient client, File file, String indexName)
-      throws IOException {
-    BulkRequest bulkRequest = new BulkRequest();
+      throws Exception {
     GigawordFileProcessor proc = new GigawordFileProcessor(file);
     Iterator<Article> iterator = proc.iterator();
 
-    // divide iterator to send a bounded number of bulk requests.
+    // Partition the iterator to size of 100
     UnmodifiableIterator<List<Article>> partitions = Iterators.partition(iterator, 100);
     while (partitions.hasNext()) {
       List<Article> articles = partitions.next();
+      BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
         bulkRequest.add(
             new IndexRequest(indexName, "doc", article.getId()).source("text", article.getText()));
@@ -126,7 +122,7 @@ public class IndexGigawordWithElasticSearch {
 
       BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
       if (bulkResponse.hasFailures()) {
-        log.error(bulkResponse.buildFailureMessage());
+        throw new Exception(bulkResponse.buildFailureMessage());
       }
     }
   }
