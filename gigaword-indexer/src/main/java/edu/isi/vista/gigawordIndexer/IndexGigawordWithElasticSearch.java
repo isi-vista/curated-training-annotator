@@ -3,6 +3,7 @@ package edu.isi.vista.gigawordIndexer;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
@@ -17,6 +18,8 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -52,7 +55,6 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_PORT_SECONDARY = "secondaryPort";
 
-
   public static void main(String[] argv) throws IOException {
 
     // get parameter file
@@ -75,7 +77,8 @@ public class IndexGigawordWithElasticSearch {
     String contentType = Files.probeContentType(concatenatedFileToIndex.toPath());
     if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
         || (contentType == null
-            && !FilenameUtils.getExtension(concatenatedFileToIndex.getName()).equalsIgnoreCase("gz"))) {
+            && !FilenameUtils.getExtension(concatenatedFileToIndex.getName())
+                .equalsIgnoreCase("gz"))) {
       log.error("{} is not a valid GZip file", concatenatedFileToIndex.getAbsolutePath());
       System.exit(1);
     }
@@ -88,11 +91,15 @@ public class IndexGigawordWithElasticSearch {
               RestClient.builder(
                   new HttpHost(
                       parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
-                      parameters.getOptionalPositiveInteger(PARAM_PORT_PRIMARY).or(DEFAULT_PORT_PRI),
+                      parameters
+                          .getOptionalPositiveInteger(PARAM_PORT_PRIMARY)
+                          .or(DEFAULT_PORT_PRI),
                       "http"),
                   new HttpHost(
                       parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
-                      parameters.getOptionalPositiveInteger(PARAM_PORT_SECONDARY).or(DEFAULT_PORT_SEC),
+                      parameters
+                          .getOptionalPositiveInteger(PARAM_PORT_SECONDARY)
+                          .or(DEFAULT_PORT_SEC),
                       "http")));
 
       // indexing
@@ -101,7 +108,7 @@ public class IndexGigawordWithElasticSearch {
 
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
-      System.exit(1);;
+      System.exit(1);
     }
   }
 
@@ -116,8 +123,10 @@ public class IndexGigawordWithElasticSearch {
       List<Article> articles = partitions.next();
       BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
+        XContentBuilder sourceBuilder =
+            buildSourceObject(article, "en", "", new Date().toString(), "");
         bulkRequest.add(
-            new IndexRequest(indexName, "doc", article.getId()).source("text", article.getText()));
+            new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
       }
 
       BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
@@ -125,6 +134,27 @@ public class IndexGigawordWithElasticSearch {
         throw new Exception(bulkResponse.buildFailureMessage());
       }
     }
+  }
+
+  private static XContentBuilder buildSourceObject(
+      Article article, String language, String source, String timestamp, String uri)
+      throws IOException {
+
+    XContentBuilder builder =
+        XContentFactory.jsonBuilder()
+            .startObject()
+            .startObject("doc")
+            .field("text", article.getText())
+            .endObject()
+            .startObject("metadata")
+            .field("id", article.getId())
+            .field("language", language)
+            .field("source", source)
+            .field("timestamp", timestamp)
+            .field("uri", uri)
+            .endObject()
+            .endObject();
+    return builder;
   }
 
   public static void queryAll(RestHighLevelClient client, String indexName) throws IOException {
