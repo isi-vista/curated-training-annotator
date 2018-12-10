@@ -45,6 +45,8 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_GIGAWORD_FILEPATH = "gigawordFilePath";
 
+  private static final String PARAM_GIGAWORD_DIRECTORY_PATH = "gigawordDirectoryPath";
+
   private static final String PARAM_INDEX_NAME = "indexName";
 
   private static final String PARAM_HOSTNAME_PRIMARY = "primaryHostName";
@@ -69,20 +71,6 @@ public class IndexGigawordWithElasticSearch {
 
     try {
 
-      String indexName = parameters.getString(PARAM_INDEX_NAME);
-      File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
-
-      String contentType = Files.probeContentType(concatenatedFileToIndex.toPath());
-      if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
-          || (contentType == null
-              && !FilenameUtils.getExtension(concatenatedFileToIndex.getName())
-                  .equalsIgnoreCase("gz"))) {
-        log.error("{} is not a valid GZip file", concatenatedFileToIndex.getAbsolutePath());
-        System.exit(1);
-      }
-
-      // start indexing
-
       RestHighLevelClient client =
           new RestHighLevelClient(
               RestClient.builder(
@@ -99,8 +87,24 @@ public class IndexGigawordWithElasticSearch {
                           .or(DEFAULT_PORT_SEC),
                       "http")));
 
-      // indexing
-      index(client, concatenatedFileToIndex, indexName);
+      String indexName = parameters.getString(PARAM_INDEX_NAME);
+
+      if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
+        File gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH);
+        for (File concatenatedFileToIndex : gigawordDir.listFiles()) {
+          if (concatenatedFileToIndex.isFile() && isValidGzipFile(concatenatedFileToIndex)) {
+            index(client, concatenatedFileToIndex, indexName);
+          }
+        }
+      } else {
+        File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
+        if (!isValidGzipFile(concatenatedFileToIndex)) {
+        	client.close();
+        	throw new Exception(concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
+        }
+        index(client, concatenatedFileToIndex, indexName);
+      }
+
       client.close();
 
     } catch (Exception e) {
@@ -109,8 +113,20 @@ public class IndexGigawordWithElasticSearch {
     }
   }
 
+  public static boolean isValidGzipFile(File file) throws IOException {
+    // check file is a gzip file
+    String contentType = Files.probeContentType(file.toPath());
+    if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
+        || (contentType == null
+            && !FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
+      return false;
+    }
+    return true;
+  }
+
   public static void index(RestHighLevelClient client, File file, String indexName)
       throws Exception {
+
     GigawordFileProcessor proc = new GigawordFileProcessor(file);
     Iterator<Article> iterator = proc.iterator();
 
