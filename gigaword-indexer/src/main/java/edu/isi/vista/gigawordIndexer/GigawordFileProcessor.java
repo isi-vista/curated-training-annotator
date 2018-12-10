@@ -81,7 +81,7 @@ public class GigawordFileProcessor {
           fullText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
 
       // Parse next document text
-      while (endOfNextDocumentClosingElement >= 0) {
+      if (endOfNextDocumentClosingElement >= 0) {
 
         // index of the end of this document
         final int endOfDoc = endOfNextDocumentClosingElement + END_OF_DOCUMENT_MARKER.length();
@@ -99,10 +99,9 @@ public class GigawordFileProcessor {
         if (m.find()) {
           String docId = m.group(1);
           return new Article(docId, docString);
+        } else {
+        	throw new RuntimeException("Missing document ID on article {} ");
         }
-        // skip this document and onto the next one
-        endOfNextDocumentClosingElement =
-            fullText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
       }
       return endOfData();
     }
