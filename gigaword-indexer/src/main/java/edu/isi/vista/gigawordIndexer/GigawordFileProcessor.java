@@ -49,7 +49,11 @@ public class GigawordFileProcessor {
 
     @Override
     public String toString() {
-      return "Article [id=" + id + ", text=" + text.substring(0, Math.min(100, text.length()-1)) + "]";
+      return "Article [id="
+          + id
+          + ", text="
+          + text.substring(0, Math.min(100, text.length() - 1))
+          + "]";
     }
   }
 
@@ -100,7 +104,7 @@ public class GigawordFileProcessor {
           String docId = m.group(1);
           return new Article(docId, docString);
         } else {
-        	throw new RuntimeException("Missing document ID on article {} ");
+          throw new RuntimeException("Missing document ID on article");
         }
       }
       return endOfData();

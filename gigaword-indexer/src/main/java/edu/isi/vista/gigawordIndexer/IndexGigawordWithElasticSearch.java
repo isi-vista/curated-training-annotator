@@ -69,9 +69,11 @@ public class IndexGigawordWithElasticSearch {
       System.exit(1);
     }
 
+    RestHighLevelClient client = null;
+
     try {
 
-      RestHighLevelClient client =
+      client =
           new RestHighLevelClient(
               RestClient.builder(
                   new HttpHost(
@@ -92,6 +94,7 @@ public class IndexGigawordWithElasticSearch {
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
         File gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH);
         for (File concatenatedFileToIndex : gigawordDir.listFiles()) {
+          // Non Gzip files in the directory are ignored
           if (concatenatedFileToIndex.isFile() && isValidGzipFile(concatenatedFileToIndex)) {
             index(client, concatenatedFileToIndex, indexName);
           }
@@ -99,17 +102,19 @@ public class IndexGigawordWithElasticSearch {
       } else {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
         if (!isValidGzipFile(concatenatedFileToIndex)) {
-        	client.close();
-        	throw new Exception(concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
+          throw new IOException(
+              concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
         }
         index(client, concatenatedFileToIndex, indexName);
       }
 
-      client.close();
-
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
       System.exit(1);
+    } finally {
+      if (client != null) {
+        client.close();
+      }
     }
   }
 
@@ -144,11 +149,20 @@ public class IndexGigawordWithElasticSearch {
 
       BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
       if (bulkResponse.hasFailures()) {
-        throw new Exception(bulkResponse.buildFailureMessage());
+        throw new RuntimeException(bulkResponse.buildFailureMessage());
       }
     }
   }
 
+  /**
+   * The source format is according to Inception's ElasticSearch-based external search.
+   *
+   * <p>_source : { doc : { text : {} }, metadata : { id : {}, language : {}, source : {}, timestamp
+   * : {}, uri : {} } }
+   *
+   * <p>Reference Inception's source code for ElasticSearchSource:
+   * https://github.com/inception-project/inception/blob/master/inception-external-search-elastic/src/main/java/de/tudarmstadt/ukp/inception/externalsearch/elastic/model/ElasticSearchSource.java
+   */
   private static XContentBuilder buildSourceObject(
       Article article, String language, String source, String timestamp, String uri)
       throws IOException {
