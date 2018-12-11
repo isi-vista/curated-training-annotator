@@ -1,37 +1,28 @@
 package edu.isi.vista.gigawordIndexer;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.UnmodifiableIterator;
+import edu.isi.nlp.parameters.Parameters;
+import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.io.FilenameUtils;
-import org.apache.http.HttpHost;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Iterators;
-import com.google.common.collect.UnmodifiableIterator;
-
-import edu.isi.nlp.parameters.Parameters;
-import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
 
 /**
  * Indexes Gigaword with Elastic Search in a way usable by the external search feature of the Inception annotator.
@@ -127,18 +118,15 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  public static boolean isValidGzipFile(File file) throws IOException {
+  private static boolean isValidGzipFile(File file) throws IOException {
     // check file is a gzip file
     String contentType = Files.probeContentType(file.toPath());
-    if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
-        || (contentType == null
-            && !FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
-      return false;
-    }
-    return true;
+    return (contentType == null || contentType.equalsIgnoreCase("application/gzip"))
+            && (contentType != null
+            || FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"));
   }
 
-  public static void index(RestHighLevelClient client, File file, String indexName)
+  private static void index(RestHighLevelClient client, File file, String indexName)
       throws Exception {
 
     GigawordFileProcessor proc = new GigawordFileProcessor(file);
@@ -176,38 +164,18 @@ public class IndexGigawordWithElasticSearch {
       Article article, String language, String source, String timestamp, String uri)
       throws IOException {
 
-    XContentBuilder builder =
-        XContentFactory.jsonBuilder()
-            .startObject()
-            .startObject("doc")
-            .field("text", article.getText())
-            .endObject()
-            .startObject("metadata")
-            .field("id", article.getId())
-            .field("language", language)
-            .field("source", source)
-            .field("timestamp", timestamp)
-            .field("uri", uri)
-            .endObject()
-            .endObject();
-    return builder;
-  }
-
-  public static void queryAll(RestHighLevelClient client, String indexName) throws IOException {
-    SearchRequest searchRequest = new SearchRequest();
-    searchRequest.indices(indexName);
-    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-    searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-    searchRequest.source(searchSourceBuilder);
-    SearchResponse sr = client.search(searchRequest, RequestOptions.DEFAULT);
-    SearchHits hits = sr.getHits();
-    for (SearchHit hit : hits.getHits()) {
-      log.info(hit.toString());
-    }
-  }
-
-  public static void deleteIndex(RestHighLevelClient client, String indexName) throws IOException {
-    DeleteIndexRequest deleteRequest = new DeleteIndexRequest(indexName);
-    client.indices().delete(deleteRequest, RequestOptions.DEFAULT);
+    return XContentFactory.jsonBuilder()
+        .startObject()
+        .startObject("doc")
+        .field("text", article.getText())
+        .endObject()
+        .startObject("metadata")
+        .field("id", article.getId())
+        .field("language", language)
+        .field("source", source)
+        .field("timestamp", timestamp)
+        .field("uri", uri)
+        .endObject()
+        .endObject();
   }
 }
