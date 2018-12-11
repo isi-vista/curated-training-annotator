@@ -33,7 +33,22 @@ import com.google.common.collect.UnmodifiableIterator;
 import edu.isi.nlp.parameters.Parameters;
 import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
 
+/**
+ * Indexes Gigaword with Elastic Search in a way usable by the external search feature of the Inception annotator.
+ *
+ * See usage message for details.
+ */
 public class IndexGigawordWithElasticSearch {
+  private static final String USAGE = "IndexGigawordWithElasticSearch param_file\n" +
+          "\tparam file consists of :-separated key-value pairs\n" +
+          "\tThe required parameters are:\n" +
+          "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
+          "\tgigawordDirectoryPath: the path to a directory where LDC2011T07 (English Gigaword 5th edition)\n" +
+          "\t\thas been extracted." +
+          "\n" +
+          "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
+          "standard ports on localhost. For these, please see the source code.";
+
 
   private static final Logger log = LoggerFactory.getLogger(IndexGigawordWithElasticSearch.class);
 
@@ -62,33 +77,14 @@ public class IndexGigawordWithElasticSearch {
     // get parameter file
     Parameters parameters = null;
 
-    if (argv.length > 0) {
+    if (argv.length == 1) {
       parameters = Parameters.loadSerifStyle(new File(argv[0]));
     } else {
-      log.error("Expected one argument, a parameter file.");
+      System.err.println(USAGE);
       System.exit(1);
     }
 
-    RestHighLevelClient client = null;
-
-    try {
-
-      client =
-          new RestHighLevelClient(
-              RestClient.builder(
-                  new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
-                      parameters
-                          .getOptionalPositiveInteger(PARAM_PORT_PRIMARY)
-                          .or(DEFAULT_PORT_PRI),
-                      "http"),
-                  new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
-                      parameters
-                          .getOptionalPositiveInteger(PARAM_PORT_SECONDARY)
-                          .or(DEFAULT_PORT_SEC),
-                      "http")));
-
+    try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       String indexName = parameters.getString(PARAM_INDEX_NAME);
 
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
@@ -103,7 +99,7 @@ public class IndexGigawordWithElasticSearch {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
         if (!isValidGzipFile(concatenatedFileToIndex)) {
           throw new IOException(
-              concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
+                  concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
         }
         index(client, concatenatedFileToIndex, indexName);
       }
@@ -111,11 +107,24 @@ public class IndexGigawordWithElasticSearch {
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
       System.exit(1);
-    } finally {
-      if (client != null) {
-        client.close();
-      }
     }
+  }
+
+  private static RestHighLevelClient buildElasticSearchClient(Parameters parameters) {
+    return new RestHighLevelClient(
+            RestClient.builder(
+                    new HttpHost(
+                            parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
+                            parameters
+                                    .getOptionalPositiveInteger(PARAM_PORT_PRIMARY)
+                                    .or(DEFAULT_PORT_PRI),
+                            "http"),
+                    new HttpHost(
+                            parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
+                            parameters
+                                    .getOptionalPositiveInteger(PARAM_PORT_SECONDARY)
+                                    .or(DEFAULT_PORT_SEC),
+                            "http")));
   }
 
   public static boolean isValidGzipFile(File file) throws IOException {
