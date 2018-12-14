@@ -1,10 +1,7 @@
 package edu.isi.vista.gigawordIndexer;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.UnmodifiableIterator;
 import edu.isi.nlp.parameters.Parameters;
-import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
-import org.apache.commons.io.FilenameUtils;
+import edu.isi.vista.gigawordIndexer.ConcatenatedGigawordDocuments.Article;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -19,10 +16,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Stream;
+
+import static com.google.common.collect.Iterables.partition;
 
 /**
  * Indexes Gigaword with Elastic Search in a way usable by the external search feature of the Inception annotator.
@@ -76,23 +78,25 @@ public class IndexGigawordWithElasticSearch {
     }
 
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
-      String indexName = parameters.getString(PARAM_INDEX_NAME);
-
+      final String indexName = parameters.getString(PARAM_INDEX_NAME);
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
-        File gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH);
-        for (File concatenatedFileToIndex : gigawordDir.listFiles()) {
-          // Non Gzip files in the directory are ignored
-          if (concatenatedFileToIndex.isFile() && isValidGzipFile(concatenatedFileToIndex)) {
-            index(client, concatenatedFileToIndex, indexName);
-          }
+        final PathMatcher gzippedConcatenatedFilePattern = FileSystems.getDefault().getPathMatcher(
+                "glob:**/data/**/*.gz");
+        final Path gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH).toPath();
+        try (Stream<Path> gigawordFiles = Files.walk(gigawordDir)) {
+          gigawordFiles
+                  .filter(gzippedConcatenatedFilePattern::matches)
+                  .forEach(gzippedConcatenatedFile -> {
+                    try {
+                          index(client, gzippedConcatenatedFile, indexName);
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                  });
         }
       } else {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
-        if (!isValidGzipFile(concatenatedFileToIndex)) {
-          throw new IOException(
-                  concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
-        }
-        index(client, concatenatedFileToIndex, indexName);
+        index(client, concatenatedFileToIndex.toPath(), indexName);
       }
 
     } catch (Exception e) {
@@ -118,25 +122,13 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  private static boolean isValidGzipFile(File file) throws IOException {
-    // check file is a gzip file
-    String contentType = Files.probeContentType(file.toPath());
-    return (contentType == null || contentType.equalsIgnoreCase("application/gzip"))
-            && (contentType != null
-            || FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"));
-  }
+  private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
+    log.info("Indexing {}", file.toAbsolutePath());
 
-  private static void index(RestHighLevelClient client, File file, String indexName)
-      throws Exception {
-
-    GigawordFileProcessor proc = new GigawordFileProcessor(file);
-    Iterator<Article> iterator = proc.iterator();
-
-    // Partition the iterator to size of 100
-    UnmodifiableIterator<List<Article>> partitions = Iterators.partition(iterator, 100);
-    while (partitions.hasNext()) {
-      List<Article> articles = partitions.next();
-      BulkRequest bulkRequest = new BulkRequest();
+    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
+    // making huge requests of unbounded size
+    for (List<Article> articles : partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100)) {
+      final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
         XContentBuilder sourceBuilder =
             buildSourceObject(article, "en", "", new Date().toString(), "");

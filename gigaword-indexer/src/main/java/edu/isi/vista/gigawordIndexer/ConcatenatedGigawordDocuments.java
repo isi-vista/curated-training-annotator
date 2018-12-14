@@ -1,40 +1,42 @@
 package edu.isi.vista.gigawordIndexer;
 
-import java.io.File;
+import com.google.common.collect.AbstractIterator;
+import edu.isi.nlp.io.GZIPByteSource;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.AbstractIterator;
+/**
+ * The LDC distributes Gigaword as a moderate number of gzipped files, each of which has many documents
+ * concatenated together.  This class lets you iterate over the documents stored in such a file.
+ */
 
-import edu.isi.nlp.io.GZIPByteSource;
+public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigawordDocuments.Article> {
+  private final String concatenatedFileText;
 
-public class GigawordFileProcessor {
-
-  private File file;
-
-  private String fullText = null;
-
-  public GigawordFileProcessor(File file) throws IOException {
-    this.file = file;
+  private ConcatenatedGigawordDocuments(String concatenatedFileText) {
+    this.concatenatedFileText = Objects.requireNonNull(concatenatedFileText);
   }
 
-  public Iterator<Article> iterator() throws IOException {
-    if (fullText == null) {
-      fullText = GZIPByteSource.fromCompressed(file).asCharSource(StandardCharsets.UTF_8).read();
-    }
-    return new ArticlesIterator(fullText);
+  public static ConcatenatedGigawordDocuments fromGigwordGZippedFile(Path p) throws IOException {
+    return new ConcatenatedGigawordDocuments(GZIPByteSource.fromCompressed(p.toFile())
+            .asCharSource(StandardCharsets.UTF_8).read());
   }
 
-  public class Article {
+  public Iterator<Article> iterator() {
+    return new ArticlesIterator();
+  }
 
+  public static class Article {
     private String id;
-
     private String text;
 
-    public Article(String id, String text) {
+    private Article(String id, String text) {
       this.id = id;
       this.text = text;
     }
@@ -53,7 +55,7 @@ public class GigawordFileProcessor {
           + id
           + ", text="
           + text.substring(0, Math.min(100, text.length() - 1))
-          + "]";
+          + "...]";
     }
   }
 
@@ -65,24 +67,17 @@ public class GigawordFileProcessor {
     // end of a document
     private final String END_OF_DOCUMENT_MARKER = "</DOC>";
 
-    private String fullText;
-
     private int startNextSearchAt = 0;
-
-    private ArticlesIterator(String text) {
-      fullText = text;
-    }
 
     @Override
     protected Article computeNext() {
-
-      if (startNextSearchAt >= fullText.length()) {
+      if (startNextSearchAt >= concatenatedFileText.length()) {
         return endOfData();
       }
 
       // index of next end of document line start
       int endOfNextDocumentClosingElement =
-          fullText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
+              concatenatedFileText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
 
       // Parse next document text
       if (endOfNextDocumentClosingElement >= 0) {
@@ -91,7 +86,7 @@ public class GigawordFileProcessor {
         final int endOfDoc = endOfNextDocumentClosingElement + END_OF_DOCUMENT_MARKER.length();
 
         // string from start of doc to end of doc
-        final String docString = fullText.substring(startNextSearchAt, endOfDoc);
+        final String docString = concatenatedFileText.substring(startNextSearchAt, endOfDoc);
 
         // update next search index
         startNextSearchAt = endOfDoc + 1;
