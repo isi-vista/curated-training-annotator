@@ -1,39 +1,47 @@
 package edu.isi.vista.gigawordIndexer;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-
-import org.apache.commons.io.FilenameUtils;
+import edu.isi.nlp.parameters.Parameters;
+import edu.isi.vista.gigawordIndexer.ConcatenatedGigawordDocuments.Article;
 import org.apache.http.HttpHost;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.UnmodifiableIterator;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Stream;
 
-import edu.isi.nlp.parameters.Parameters;
-import edu.isi.vista.gigawordIndexer.GigawordFileProcessor.Article;
+import static com.google.common.collect.Iterables.partition;
 
+/**
+ * Indexes Gigaword with Elastic Search in a way usable by the external search feature of the Inception annotator.
+ *
+ * See usage message for details.
+ */
 public class IndexGigawordWithElasticSearch {
+  private static final String USAGE = "IndexGigawordWithElasticSearch param_file\n" +
+          "\tparam file consists of :-separated key-value pairs\n" +
+          "\tThe required parameters are:\n" +
+          "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
+          "\tgigawordDirectoryPath: the path to a directory where LDC2011T07 (English Gigaword 5th edition)\n" +
+          "\t\thas been extracted." +
+          "\n" +
+          "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
+          "standard ports on localhost. For these, please see the source code.";
+
 
   private static final Logger log = LoggerFactory.getLogger(IndexGigawordWithElasticSearch.class);
 
@@ -62,84 +70,65 @@ public class IndexGigawordWithElasticSearch {
     // get parameter file
     Parameters parameters = null;
 
-    if (argv.length > 0) {
+    if (argv.length == 1) {
       parameters = Parameters.loadSerifStyle(new File(argv[0]));
     } else {
-      log.error("Expected one argument, a parameter file.");
+      System.err.println(USAGE);
       System.exit(1);
     }
 
-    RestHighLevelClient client = null;
-
-    try {
-
-      client =
-          new RestHighLevelClient(
-              RestClient.builder(
-                  new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
-                      parameters
-                          .getOptionalPositiveInteger(PARAM_PORT_PRIMARY)
-                          .or(DEFAULT_PORT_PRI),
-                      "http"),
-                  new HttpHost(
-                      parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
-                      parameters
-                          .getOptionalPositiveInteger(PARAM_PORT_SECONDARY)
-                          .or(DEFAULT_PORT_SEC),
-                      "http")));
-
-      String indexName = parameters.getString(PARAM_INDEX_NAME);
-
+    try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
+      final String indexName = parameters.getString(PARAM_INDEX_NAME);
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
-        File gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH);
-        for (File concatenatedFileToIndex : gigawordDir.listFiles()) {
-          // Non Gzip files in the directory are ignored
-          if (concatenatedFileToIndex.isFile() && isValidGzipFile(concatenatedFileToIndex)) {
-            index(client, concatenatedFileToIndex, indexName);
-          }
+        final PathMatcher gzippedConcatenatedFilePattern = FileSystems.getDefault().getPathMatcher(
+                "glob:**/data/**/*.gz");
+        final Path gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH).toPath();
+        try (Stream<Path> gigawordFiles = Files.walk(gigawordDir)) {
+          gigawordFiles
+                  .filter(gzippedConcatenatedFilePattern::matches)
+                  .forEach(gzippedConcatenatedFile -> {
+                    try {
+                          index(client, gzippedConcatenatedFile, indexName);
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                  });
         }
       } else {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
-        if (!isValidGzipFile(concatenatedFileToIndex)) {
-          throw new IOException(
-              concatenatedFileToIndex.getAbsolutePath() + " is not a valid GZip file");
-        }
-        index(client, concatenatedFileToIndex, indexName);
+        index(client, concatenatedFileToIndex.toPath(), indexName);
       }
 
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
       System.exit(1);
-    } finally {
-      if (client != null) {
-        client.close();
-      }
     }
   }
 
-  public static boolean isValidGzipFile(File file) throws IOException {
-    // check file is a gzip file
-    String contentType = Files.probeContentType(file.toPath());
-    if ((contentType != null && !contentType.equalsIgnoreCase("application/gzip"))
-        || (contentType == null
-            && !FilenameUtils.getExtension(file.getName()).equalsIgnoreCase("gz"))) {
-      return false;
-    }
-    return true;
+  private static RestHighLevelClient buildElasticSearchClient(Parameters parameters) {
+    return new RestHighLevelClient(
+            RestClient.builder(
+                    new HttpHost(
+                            parameters.getOptionalString(PARAM_HOSTNAME_PRIMARY).or(DEFAULT_HOST),
+                            parameters
+                                    .getOptionalPositiveInteger(PARAM_PORT_PRIMARY)
+                                    .or(DEFAULT_PORT_PRI),
+                            "http"),
+                    new HttpHost(
+                            parameters.getOptionalString(PARAM_HOSTNAME_SECONDARY).or(DEFAULT_HOST),
+                            parameters
+                                    .getOptionalPositiveInteger(PARAM_PORT_SECONDARY)
+                                    .or(DEFAULT_PORT_SEC),
+                            "http")));
   }
 
-  public static void index(RestHighLevelClient client, File file, String indexName)
-      throws Exception {
+  private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
+    log.info("Indexing {}", file.toAbsolutePath());
 
-    GigawordFileProcessor proc = new GigawordFileProcessor(file);
-    Iterator<Article> iterator = proc.iterator();
-
-    // Partition the iterator to size of 100
-    UnmodifiableIterator<List<Article>> partitions = Iterators.partition(iterator, 100);
-    while (partitions.hasNext()) {
-      List<Article> articles = partitions.next();
-      BulkRequest bulkRequest = new BulkRequest();
+    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
+    // making huge requests of unbounded size
+    for (List<Article> articles : partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100)) {
+      final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
         XContentBuilder sourceBuilder =
             buildSourceObject(article, "en", "", new Date().toString(), "");
@@ -167,38 +156,18 @@ public class IndexGigawordWithElasticSearch {
       Article article, String language, String source, String timestamp, String uri)
       throws IOException {
 
-    XContentBuilder builder =
-        XContentFactory.jsonBuilder()
-            .startObject()
-            .startObject("doc")
-            .field("text", article.getText())
-            .endObject()
-            .startObject("metadata")
-            .field("id", article.getId())
-            .field("language", language)
-            .field("source", source)
-            .field("timestamp", timestamp)
-            .field("uri", uri)
-            .endObject()
-            .endObject();
-    return builder;
-  }
-
-  public static void queryAll(RestHighLevelClient client, String indexName) throws IOException {
-    SearchRequest searchRequest = new SearchRequest();
-    searchRequest.indices(indexName);
-    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-    searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-    searchRequest.source(searchSourceBuilder);
-    SearchResponse sr = client.search(searchRequest, RequestOptions.DEFAULT);
-    SearchHits hits = sr.getHits();
-    for (SearchHit hit : hits.getHits()) {
-      log.info(hit.toString());
-    }
-  }
-
-  public static void deleteIndex(RestHighLevelClient client, String indexName) throws IOException {
-    DeleteIndexRequest deleteRequest = new DeleteIndexRequest(indexName);
-    client.indices().delete(deleteRequest, RequestOptions.DEFAULT);
+    return XContentFactory.jsonBuilder()
+        .startObject()
+        .startObject("doc")
+        .field("text", article.getText())
+        .endObject()
+        .startObject("metadata")
+        .field("id", article.getId())
+        .field("language", language)
+        .field("source", source)
+        .field("timestamp", timestamp)
+        .field("uri", uri)
+        .endObject()
+        .endObject();
   }
 }
