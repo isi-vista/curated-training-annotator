@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import static org.apache.uima.fit.pipeline.SimplePipeline.runPipeline;
 import de.tudarmstadt.ukp.dkpro.core.api.io.ResourceCollectionReaderBase;
@@ -30,11 +32,15 @@ import org.apache.uima.fit.factory.ConfigurationParameterFactory;
 import org.apache.uima.fit.factory.JCasFactory;
 import org.apache.uima.fit.util.JCasUtil;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.jcas.cas.TOP;
 import org.apache.uima.json.JsonCasSerializer;
 import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
 import org.apache.uima.util.CasCreationUtils;
 import org.apache.uima.util.CasIOUtils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import webanno.custom.*;
 
 public class SerializedCasConverter
 {
@@ -51,19 +57,93 @@ public class SerializedCasConverter
             }
 
 
-            // Method 1, CasIOUtils to XML format
-            try (OutputStream os = new FileOutputStream(new File(outDir,"xmi.txt"))) {
-                CasIOUtils.save(cas, os, SerialFormat.XMI);
+//            // Method 1, CasIOUtils to XML format
+//            try (OutputStream os = new FileOutputStream(new File(outDir,"xmi.txt"))) {
+//                CasIOUtils.save(cas, os, SerialFormat.XMI);
+//            }
+//
+//            // Method 2, JsonCasSerializer to Json format
+//            try (OutputStream os = new FileOutputStream(new File(outDir,"json.txt"))) {
+//                JsonCasSerializer.jsonSerialize(cas, os);
+//            }
+//
+//            // Method 3, DKPro
+//            runDkProConversion(cas, f, outDir);
+
+            JCas jcas = cas.getJCas();
+            JSONArray attacks = new JSONArray();
+            JSONArray demonstrates = new JSONArray();
+
+            for (Attack attack : JCasUtil.select(jcas, Attack.class)) {
+                JSONObject jsonAttack = new JSONObject();
+                jsonAttack.put("type", "Conflict.Attack");
+                jsonAttack.put("begin", attack.getBegin());
+                jsonAttack.put("end", attack.getEnd());
+
+                JSONArray jsonArguments = new JSONArray();
+
+                // get arguments for attack
+                if (attack.getAttacker().size() > 0) {
+                    JSONObject argument = new JSONObject();
+                    Attacker attacker = attack.getAttacker(0).getTarget();
+                    argument.put("role", "attacker");
+                    argument.put("begin", attacker.getBegin());
+                    argument.put("end", attacker.getEnd());
+                    jsonArguments.add(argument);
+                }
+                if (attack.getInstrument().size() > 0) {
+                    JSONObject argument = new JSONObject();
+                    Instrument instrument = attack.getInstrument(0).getTarget();
+                    argument.put("role", "instrument");
+                    argument.put("begin", instrument.getBegin());
+                    argument.put("end", instrument.getEnd());
+                    jsonArguments.add(argument);
+                }
+                if (attack.getPlace().size() > 0) {
+                    JSONObject argument = new JSONObject();
+                    Place place = attack.getPlace(0).getTarget();
+                    argument.put("role", "place");
+                    argument.put("begin", place.getBegin());
+                    argument.put("end", place.getEnd());
+                    jsonArguments.add(argument);
+                }
+                if (attack.getTarget().size() > 0) {
+                    JSONObject argument = new JSONObject();
+                    Target target = attack.getTarget(0).getTarget();
+                    argument.put("role", "target");
+                    argument.put("begin", target.getBegin());
+                    argument.put("end", target.getEnd());
+                    jsonArguments.add(argument);
+                }
+                if (attack.getTime().size() > 0) {
+                    JSONObject argument = new JSONObject();
+                    Time time = attack.getTime(0).getTarget();
+                    argument.put("role", "time");
+                    argument.put("begin", time.getBegin());
+                    argument.put("end", time.getEnd());
+                    jsonArguments.add(argument);
+                }
+
+
+                jsonAttack.put("arguments", jsonArguments);
+
+
+
+                attacks.add(jsonAttack);
             }
 
-            // Method 2, JsonCasSerializer to Json format
-            try (OutputStream os = new FileOutputStream(new File(outDir,"json.txt"))) {
-                JsonCasSerializer.jsonSerialize(cas, os);
+
+            for (Demonstrate domonstrate : JCasUtil.select(jcas, Demonstrate.class)) {
+
             }
 
-            // Method 3, DKPro
-            runDkProConversion(cas, f, outDir);
+            JSONObject json = new JSONObject();
+            json.put("attacks", attacks);
+            json.put("demonstrates", demonstrates);
 
+            try (OutputStream os = new FileOutputStream(new File(outDir, "out.json"))) {
+                os.write(json.toJSONString().getBytes());
+            }
         }
         catch (IOException | UIMAException e) {
             e.printStackTrace();
