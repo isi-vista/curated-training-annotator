@@ -1,9 +1,6 @@
 package edu.isi.vista.annotationutils;
 
 import static org.apache.uima.cas.impl.Serialization.deserializeCASComplete;
-import static org.apache.uima.fit.factory.AnalysisEngineFactory.createEngineDescription;
-import static org.apache.uima.fit.factory.CollectionReaderFactory.createReader;
-import static org.apache.uima.fit.factory.CollectionReaderFactory.createReaderDescription;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,141 +9,104 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
-import java.io.StringWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
-import static org.apache.uima.fit.pipeline.SimplePipeline.runPipeline;
-import de.tudarmstadt.ukp.dkpro.core.api.io.ResourceCollectionReaderBase;
-import de.tudarmstadt.ukp.dkpro.core.io.bincas.BinaryCasReader;
-import de.tudarmstadt.ukp.dkpro.core.io.xmi.XmiWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.uima.UIMAException;
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
-import org.apache.uima.cas.SerialFormat;
 import org.apache.uima.cas.impl.CASCompleteSerializer;
 import org.apache.uima.cas.impl.CASImpl;
-import org.apache.uima.collection.CollectionReader;
-import org.apache.uima.collection.CollectionReaderDescription;
-import org.apache.uima.fit.factory.ConfigurationParameterFactory;
-import org.apache.uima.fit.factory.JCasFactory;
 import org.apache.uima.fit.util.JCasUtil;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.jcas.cas.TOP;
-import org.apache.uima.json.JsonCasSerializer;
-import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
 import org.apache.uima.util.CasCreationUtils;
-import org.apache.uima.util.CasIOUtils;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import webanno.custom.*;
 
 public class SerializedCasConverter
 {
-    public static void main(String[] args) throws ResourceInitializationException
+    private static final Logger log = LoggerFactory.getLogger(SerializedCasConverter.class);
+
+    public static void main(String[] args)
     {
-        // one input expected: directory to find the binary CAS files (file extension .ser)
+        // arg[0]: path of the binary CAS files (file extension .ser)
+        // arg[1]: path of the output file
+        if (args.length < 2) {
+            log.error("Expecting two arguments: path to the binary CAS file and path of the output file");
+            System.exit(1);
+        }
 
-        File f = new File(args[0]);
+        File input = new File(args[0]);
+        File output = new File(args[1]);
+
         try {
-            CAS cas = readCasFromFile(f);
-            File outDir = new File("output");
-            if (!outDir.exists()) {
-                outDir.mkdir();
-            }
-
-
-//            // Method 1, CasIOUtils to XML format
-//            try (OutputStream os = new FileOutputStream(new File(outDir,"xmi.txt"))) {
-//                CasIOUtils.save(cas, os, SerialFormat.XMI);
-//            }
-//
-//            // Method 2, JsonCasSerializer to Json format
-//            try (OutputStream os = new FileOutputStream(new File(outDir,"json.txt"))) {
-//                JsonCasSerializer.jsonSerialize(cas, os);
-//            }
-//
-//            // Method 3, DKPro
-//            runDkProConversion(cas, f, outDir);
-
+            CAS cas = readCasFromFile(input);
             JCas jcas = cas.getJCas();
-            JSONArray attacks = new JSONArray();
-            JSONArray demonstrates = new JSONArray();
 
-            for (Attack attack : JCasUtil.select(jcas, Attack.class)) {
-                JSONObject jsonAttack = new JSONObject();
-                jsonAttack.put("type", "Conflict.Attack");
-                jsonAttack.put("begin", attack.getBegin());
-                jsonAttack.put("end", attack.getEnd());
+            List<Attack> attacks = new ArrayList<>();
+            List<Demonstrate> demonstrates = new ArrayList<>();
 
-                JSONArray jsonArguments = new JSONArray();
+            for (webanno.custom.Attack attack : JCasUtil.select(jcas, webanno.custom.Attack.class)) {
+                List<Argument> arguments = new ArrayList<>();
 
                 // get arguments for attack
                 if (attack.getAttacker().size() > 0) {
-                    JSONObject argument = new JSONObject();
                     Attacker attacker = attack.getAttacker(0).getTarget();
-                    argument.put("role", "attacker");
-                    argument.put("begin", attacker.getBegin());
-                    argument.put("end", attacker.getEnd());
-                    jsonArguments.add(argument);
+                    arguments.add(new Argument("Attacker", attacker.getBegin(), attacker.getEnd()));
                 }
                 if (attack.getInstrument().size() > 0) {
-                    JSONObject argument = new JSONObject();
                     Instrument instrument = attack.getInstrument(0).getTarget();
-                    argument.put("role", "instrument");
-                    argument.put("begin", instrument.getBegin());
-                    argument.put("end", instrument.getEnd());
-                    jsonArguments.add(argument);
+                    arguments.add(new Argument("Instrument", instrument.getBegin(), instrument.getEnd()));
                 }
                 if (attack.getPlace().size() > 0) {
-                    JSONObject argument = new JSONObject();
                     Place place = attack.getPlace(0).getTarget();
-                    argument.put("role", "place");
-                    argument.put("begin", place.getBegin());
-                    argument.put("end", place.getEnd());
-                    jsonArguments.add(argument);
+                    arguments.add(new Argument("Place", place.getBegin(), place.getEnd()));
                 }
                 if (attack.getTarget().size() > 0) {
-                    JSONObject argument = new JSONObject();
                     Target target = attack.getTarget(0).getTarget();
-                    argument.put("role", "target");
-                    argument.put("begin", target.getBegin());
-                    argument.put("end", target.getEnd());
-                    jsonArguments.add(argument);
+                    arguments.add(new Argument("Target", target.getBegin(), target.getEnd()));
                 }
                 if (attack.getTime().size() > 0) {
-                    JSONObject argument = new JSONObject();
                     Time time = attack.getTime(0).getTarget();
-                    argument.put("role", "time");
-                    argument.put("begin", time.getBegin());
-                    argument.put("end", time.getEnd());
-                    jsonArguments.add(argument);
+                    arguments.add(new Argument("Time", time.getBegin(), time.getEnd()));
                 }
 
-
-                jsonAttack.put("arguments", jsonArguments);
-
-
-
-                attacks.add(jsonAttack);
+                attacks.add(new Attack(attack.getBegin(), attack.getEnd(), arguments));
             }
 
 
-            for (Demonstrate domonstrate : JCasUtil.select(jcas, Demonstrate.class)) {
+            for (webanno.custom.Demonstrate demonstrate : JCasUtil.select(jcas, webanno.custom.Demonstrate.class)) {
+                List<Argument> arguments = new ArrayList<>();
 
+                // get arguments for demonstrate
+                if (demonstrate.getEntity().size() > 0) {
+                    Entity entity = demonstrate.getEntity(0).getTarget();
+                    arguments.add(new Argument("Entity", entity.getBegin(), entity.getEnd()));
+                }
+                if (demonstrate.getPlace().size() > 0) {
+                    Place place = demonstrate.getPlace(0).getTarget();
+                    arguments.add(new Argument("Place", place.getBegin(), place.getEnd()));
+                }
+                if (demonstrate.getTime().size() > 0) {
+                    Time time = demonstrate.getTime(0).getTarget();
+                    arguments.add(new Argument("Time", time.getBegin(), time.getEnd()));
+                }
+
+                demonstrates.add(new Demonstrate(demonstrate.getBegin(), demonstrate.getEnd(), arguments));
             }
 
-            JSONObject json = new JSONObject();
-            json.put("attacks", attacks);
-            json.put("demonstrates", demonstrates);
-
-            try (OutputStream os = new FileOutputStream(new File(outDir, "out.json"))) {
-                os.write(json.toJSONString().getBytes());
+            Conflict conflict = new Conflict(attacks, demonstrates);
+            ObjectMapper mapper = new ObjectMapper();
+            try (OutputStream os = new FileOutputStream(output)) {
+                mapper.writeValue(os, conflict);
             }
         }
         catch (IOException | UIMAException e) {
-            e.printStackTrace();
+            log.error("Caught exception {}", e);
+            System.exit(1);
         }
     }
 
@@ -177,69 +137,8 @@ public class SerializedCasConverter
             throw new IOException(e);
         }
         catch (CASException e) {
-            e.printStackTrace();
+            log.error("Caught exception {}", e);
+            System.exit(1);
         }
     }
-
-    private static void runDkProConversion(CAS cas, File binaryFile, File outDir)
-            throws UIMAException, IOException
-    {
-        runPipeline(
-                createReaderDescription(BinaryCasReader.class,
-                        BinaryCasReader.PARAM_SOURCE_LOCATION, binaryFile.getAbsolutePath(),
-                        BinaryCasReader.PARAM_LANGUAGE, "en"),
-                createEngineDescription(XmiWriter.class,
-                        XmiWriter.PARAM_TARGET_LOCATION, outDir.getAbsolutePath(),
-                        XmiWriter.PARAM_STRIP_EXTENSION, true));
-    }
-
-//    public JCas importCasFromFile(File aFile, Project aProject, String aFormatId, CollectionReaderDescription aReaderDescription)
-//            throws UIMAException, IOException
-//    {
-//        // Prepare a CAS with the project type system
-//        TypeSystemDescription allTypes = annotationService.getFullProjectTypeSystem(aProject);
-//        CAS cas = JCasFactory.createJCas(allTypes).getCas();
-//
-//        // Convert the source document to CAS
-//        ConfigurationParameterFactory.addConfigurationParameters(aReaderDescription,
-//                ResourceCollectionReaderBase.PARAM_SOURCE_LOCATION,
-//                aFile.getParentFile().getAbsolutePath(),
-//                ResourceCollectionReaderBase.PARAM_PATTERNS,
-//                new String[] { "[+]" + aFile.getName() });
-//        CollectionReader reader = createReader(aReaderDescription);
-//
-//        if (!reader.hasNext()) {
-//            throw new FileNotFoundException(
-//                    "Source file [" + aFile.getName() + "] not found in [" + aFile.getPath() + "]");
-//        }
-//        reader.getNext(cas);
-//        JCas jCas = cas.getJCas();
-//
-//        // Create sentence / token annotations if they are missing
-//        boolean hasTokens = JCasUtil.exists(jCas, Token.class);
-//        boolean hasSentences = JCasUtil.exists(jCas, Sentence.class);
-//
-//        //        if (!hasTokens || !hasSentences) {
-//        //            AnalysisEngine pipeline = createEngine(createEngineDescription(
-//        //                    BreakIteratorSegmenter.class,
-//        //                    BreakIteratorSegmenter.PARAM_WRITE_TOKEN, !hasTokens,
-//        //                    BreakIteratorSegmenter.PARAM_WRITE_SENTENCE, !hasSentences));
-//        //            pipeline.process(jCas);
-//        //        }
-//
-//        if (!hasSentences) {
-//            splitSentences(jCas);
-//        }
-//
-//        if (!hasTokens) {
-//            tokenize(jCas);
-//        }
-//
-//        if (!JCasUtil.exists(jCas, Token.class) || !JCasUtil.exists(jCas, Sentence.class)) {
-//            throw new IOException("The document appears to be empty. Unable to detect any "
-//                    + "tokens or sentences. Empty documents cannot be imported.");
-//        }
-//
-//        return jCas;
-//    }
 }
