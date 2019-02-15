@@ -2,7 +2,6 @@ package edu.isi.vista.gigawordIndexer;
 
 import com.google.common.collect.AbstractIterator;
 import edu.isi.nlp.io.GZIPByteSource;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -12,11 +11,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The LDC distributes Gigaword as a moderate number of gzipped files, each of which has many documents
- * concatenated together.  This class lets you iterate over the documents stored in such a file.
+ * The LDC distributes Gigaword as a moderate number of gzipped files, each of which has many
+ * documents concatenated together. This class lets you iterate over the documents stored in such a
+ * file.
  */
-
-public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigawordDocuments.Article> {
+public class ConcatenatedGigawordDocuments
+    implements Iterable<ConcatenatedGigawordDocuments.Article> {
   private final String concatenatedFileText;
 
   private ConcatenatedGigawordDocuments(String concatenatedFileText) {
@@ -24,8 +24,8 @@ public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigaw
   }
 
   public static ConcatenatedGigawordDocuments fromGigwordGZippedFile(Path p) throws IOException {
-    return new ConcatenatedGigawordDocuments(GZIPByteSource.fromCompressed(p.toFile())
-            .asCharSource(StandardCharsets.UTF_8).read());
+    return new ConcatenatedGigawordDocuments(
+        GZIPByteSource.fromCompressed(p.toFile()).asCharSource(StandardCharsets.UTF_8).read());
   }
 
   public Iterator<Article> iterator() {
@@ -77,7 +77,7 @@ public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigaw
 
       // index of next end of document line start
       int endOfNextDocumentClosingElement =
-              concatenatedFileText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
+          concatenatedFileText.indexOf(END_OF_DOCUMENT_MARKER, startNextSearchAt);
 
       // Parse next document text
       if (endOfNextDocumentClosingElement >= 0) {
