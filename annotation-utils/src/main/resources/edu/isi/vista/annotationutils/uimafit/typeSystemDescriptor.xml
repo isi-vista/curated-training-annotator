@@ -5,7 +5,7 @@
 
     <typeDescription>
 
-      <name>webanno.custom.Attack</name>
+      <name>webanno.custom.CTEventSpan</name>
 
       <description/>
 
@@ -15,71 +15,11 @@
 
         <featureDescription>
 
-          <name>Attacker</name>
+          <name>negative_example</name>
 
           <description/>
 
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.AttackAttackerLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Instrument</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.AttackInstrumentLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Place</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.AttackPlaceLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Target</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.AttackTargetLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Time</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.AttackTimeLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
+          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
 
         </featureDescription>
 
@@ -89,17 +29,37 @@
 
     <typeDescription>
 
-      <name>webanno.custom.AttackAttackerLink</name>
+      <name>webanno.custom.CTEventSpanType</name>
 
       <description/>
 
-      <supertypeName>uima.cas.TOP</supertypeName>
+      <supertypeName>uima.tcas.Annotation</supertypeName>
 
       <features>
 
         <featureDescription>
 
-          <name>role</name>
+          <name>Dependent</name>
+
+          <description/>
+
+          <rangeTypeName>webanno.custom.CTEventSpan</rangeTypeName>
+
+        </featureDescription>
+
+        <featureDescription>
+
+          <name>Governor</name>
+
+          <description/>
+
+          <rangeTypeName>webanno.custom.CTEventSpan</rangeTypeName>
+
+        </featureDescription>
+
+        <featureDescription>
+
+          <name>relation_type</name>
 
           <description/>
 
@@ -107,391 +67,7 @@
 
         </featureDescription>
 
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Attacker</rangeTypeName>
-
-        </featureDescription>
-
       </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.AttackInstrumentLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Instrument</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.AttackPlaceLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Place</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.AttackTargetLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Target</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.AttackTimeLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Time</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Attacker</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Claim</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Demonstrate</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>Entity</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.DemonstrateEntityLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Place</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.DemonstratePlaceLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>Time</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.FSArray</rangeTypeName>
-
-          <elementType>webanno.custom.DemonstrateTimeLink</elementType>
-
-          <multipleReferencesAllowed>false</multipleReferencesAllowed>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.DemonstrateEntityLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Entity</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.DemonstratePlaceLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Place</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.DemonstrateTimeLink</name>
-
-      <description/>
-
-      <supertypeName>uima.cas.TOP</supertypeName>
-
-      <features>
-
-        <featureDescription>
-
-          <name>role</name>
-
-          <description/>
-
-          <rangeTypeName>uima.cas.String</rangeTypeName>
-
-        </featureDescription>
-
-        <featureDescription>
-
-          <name>target</name>
-
-          <description/>
-
-          <rangeTypeName>webanno.custom.Time</rangeTypeName>
-
-        </featureDescription>
-
-      </features>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Entity</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Instrument</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Place</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Premise</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Target</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
-
-    </typeDescription>
-
-    <typeDescription>
-
-      <name>webanno.custom.Time</name>
-
-      <description/>
-
-      <supertypeName>uima.tcas.Annotation</supertypeName>
 
     </typeDescription>
 
