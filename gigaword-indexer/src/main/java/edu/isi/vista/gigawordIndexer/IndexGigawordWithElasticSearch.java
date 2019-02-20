@@ -28,6 +28,7 @@ import static com.google.common.collect.Iterables.partition;
 
 /**
  * Indexes Gigaword with Elastic Search in a way usable by the external search feature of the Inception annotator.
+ * The expected Gigaword version is LDC2011T07 (plain version)
  *
  * See usage message for details.
  */
@@ -37,7 +38,8 @@ public class IndexGigawordWithElasticSearch {
           "\tThe required parameters are:\n" +
           "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
           "\tgigawordDirectoryPath: the path to a directory where LDC2011T07 (English Gigaword 5th edition)\n" +
-          "\t\thas been extracted." +
+          "\t\thas been extracted. \n" +
+          "\tMake sure the version is the plain Gigaword (LDC2011T07) file and not the other versions." +
           "\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
@@ -124,6 +126,12 @@ public class IndexGigawordWithElasticSearch {
 
   private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
     log.info("Indexing {}", file.toAbsolutePath());
+
+    // If file ends with .xml.gz, this may be the wrong version of Gigaword.
+    if (file.toString().toLowerCase().endsWith(".xml.gz")) {
+      log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
+          + "Make sure you are using the plain version LDC2011T07.");
+    }
 
     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
     // making huge requests of unbounded size
