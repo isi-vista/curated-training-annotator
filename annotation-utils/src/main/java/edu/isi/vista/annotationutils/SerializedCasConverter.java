@@ -2,6 +2,7 @@ package edu.isi.vista.annotationutils;
 
 import static org.apache.uima.cas.impl.Serialization.deserializeCASComplete;
 
+import edu.isi.nlp.parameters.Parameters;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -35,39 +36,48 @@ import webanno.custom.CTEventSpanType;
 
 public class SerializedCasConverter {
 
+  private static final String USAGE = "SerializedCasConverter param_file\n" +
+      "\tparam file consists of :-separated key-value pairs\n" +
+      "\tThe required parameters are:\n" +
+      "\tprojectName: the name of the project\n" +
+      "\tinputDirectory: the path to a directory with serialized CAS files (.ser)\n" +
+      "\toutputDirectory: the path to a directory where output files to be written to";
+
   private static final Logger log = LoggerFactory.getLogger(SerializedCasConverter.class);
 
-  private static FileFilter binaryCASFileFilter = file -> {
-    if (!file.isDirectory() && file.getName().toLowerCase().endsWith(".ser")) {
-      return true;
-    }
-    return false;
-  };
+  private static final String PARAM_PROJECT_NAME = "projectName";
 
-  public static void main(String[] args) {
-    // arg[0]: project name
-    // arg[1]: path of the binary CAS files (file extension .ser)
-    // arg[2]: path of the output file
-    if (args.length < 3) {
-      log.error("Expecting two arguments: path to the binary CAS files and path of the output file");
+  private static final String PARAM_INPUT_DIRECTORY = "inputDirectory";
+
+  private static final String PARAM_OUTPUT_DIRECTORY = "outputDirectory";
+
+  public static void main(String[] args) throws IOException {
+
+    // get parameters from parameter file
+    Parameters parameters = null;
+
+    if (args.length == 1) {
+      parameters = Parameters.loadSerifStyle(new File(args[0]));
+    } else {
+      System.err.println(USAGE);
       System.exit(1);
     }
 
-    File inputDir = new File(args[1]);
+    String projectName = parameters.getString(PARAM_PROJECT_NAME);
+    File inputDir = new File(parameters.getString(PARAM_INPUT_DIRECTORY));
+    File outputDir = new File(parameters.getString(PARAM_OUTPUT_DIRECTORY));
+
     if (!inputDir.exists() || !inputDir.isDirectory()) {
       log.error("Invalid input directory.");
       System.exit(1);
     }
 
-    File outputDir = new File(args[2]);
     if (!outputDir.exists()) {
       outputDir.mkdirs();
     } else if (!outputDir.isDirectory()) {
       log.error("Invalid output directory");
       System.exit(1);
     }
-
-    String projectName = args[0];
 
     try {
       export(projectName, inputDir, outputDir);
