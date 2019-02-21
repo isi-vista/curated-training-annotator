@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<typeSystemDescription xmlns="http://uima.apache.org/resourceSpecifier">
+
+  <types>
+
+    <typeDescription>
+
+      <name>webanno.custom.CTEventSpan</name>
+
+      <description/>
+
+      <supertypeName>uima.tcas.Annotation</supertypeName>
+
+      <features>
+
+        <featureDescription>
+
+          <name>negative_example</name>
+
+          <description/>
+
+          <rangeTypeName>uima.cas.Boolean</rangeTypeName>
+
+        </featureDescription>
+
+      </features>
+
+    </typeDescription>
+
+    <typeDescription>
+
+      <name>webanno.custom.CTEventSpanType</name>
+
+      <description/>
+
+      <supertypeName>uima.tcas.Annotation</supertypeName>
+
+      <features>
+
+        <featureDescription>
+
+          <name>Dependent</name>
+
+          <description/>
+
+          <rangeTypeName>webanno.custom.CTEventSpan</rangeTypeName>
+
+        </featureDescription>
+
+        <featureDescription>
+
+          <name>Governor</name>
+
+          <description/>
+
+          <rangeTypeName>webanno.custom.CTEventSpan</rangeTypeName>
+
+        </featureDescription>
+
+        <featureDescription>
+
+          <name>relation_type</name>
+
+          <description/>
+
+          <rangeTypeName>uima.cas.String</rangeTypeName>
+
+        </featureDescription>
+
+      </features>
+
+    </typeDescription>
+
+  </types>
+
+</typeSystemDescription>

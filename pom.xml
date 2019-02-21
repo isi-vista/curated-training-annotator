@@ -21,6 +21,7 @@
 
 	<modules>
 		<module>gigaword-indexer</module>
+		<module>annotation-utils</module>
 	</modules>
 
 	<developers>

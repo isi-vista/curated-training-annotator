@@ -1,0 +1,1 @@
+classpath*:edu/isi/vista/annotationutils/uimafit/typeSystemDescriptor.xml
