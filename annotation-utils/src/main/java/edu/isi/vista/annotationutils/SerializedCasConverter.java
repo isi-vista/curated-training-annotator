@@ -28,6 +28,7 @@ import org.apache.uima.cas.impl.CASCompleteSerializer;
 import org.apache.uima.cas.impl.CASImpl;
 import org.apache.uima.fit.util.JCasUtil;
 import org.apache.uima.jcas.JCas;
+import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.metadata.TypeSystemDescription;
 import org.apache.uima.util.CasCreationUtils;
 import org.slf4j.Logger;
@@ -41,13 +42,13 @@ public class SerializedCasConverter {
       "SerializedCasConverter param_file\n"
           + "\tparam file consists of :-separated key-value pairs\n"
           + "\tThe required parameters are:\n"
-          + "\tprojectName: the name of the project\n"
+          + "\teventType: event type\n"
           + "\tinputDirectory: the path to a directory with serialized CAS files (.ser)\n"
           + "\toutputDirectory: the path to a directory where output files to be written to";
 
   private static final Logger log = LoggerFactory.getLogger(SerializedCasConverter.class);
 
-  private static final String PARAM_PROJECT_NAME = "projectName";
+  private static final String PARAM_EVENT_TYPE = "eventType";
 
   private static final String PARAM_INPUT_DIRECTORY = "inputDirectory";
 
@@ -65,7 +66,7 @@ public class SerializedCasConverter {
       System.exit(1);
     }
 
-    String projectName = parameters.getString(PARAM_PROJECT_NAME);
+    String eventType = parameters.getString(PARAM_EVENT_TYPE);
     File inputDir = new File(parameters.getString(PARAM_INPUT_DIRECTORY));
     File outputDir = new File(parameters.getString(PARAM_OUTPUT_DIRECTORY));
 
@@ -82,26 +83,26 @@ public class SerializedCasConverter {
     }
 
     try {
-      export(projectName, inputDir, outputDir);
-    } catch (IOException | UIMAException e) {
+      export(eventType, inputDir, outputDir);
+    } catch (Exception e) {
       log.error("Caught exception {}", e);
       System.exit(1);
     }
   }
 
-  private static void export(String projectName, File inputDir, File outputDir)
-      throws IOException, UIMAException {
+  private static void export(String eventType, File inputDir, File outputDir)
+      throws IOException, UIMAException, ClassNotFoundException {
     for (File input : inputDir.listFiles()) {
       if (input.isDirectory()) {
-        export(projectName, input, outputDir);
+        export(eventType, input, outputDir);
       } else if (input.getName().toLowerCase().endsWith(".ser")) {
-        exportFile(projectName, input, outputDir);
+        exportFile(eventType, input, outputDir);
       }
     }
   }
 
-  private static void exportFile(String projectName, File input, File outputDir)
-      throws IOException, UIMAException {
+  private static void exportFile(String eventType, File input, File outputDir)
+      throws IOException, UIMAException, ClassNotFoundException {
 
     CAS cas = readCasFromFile(input);
     JCas jcas = cas.getJCas();
@@ -132,6 +133,7 @@ public class SerializedCasConverter {
       CTEventSpan eventAnnotation = entry.getKey();
       events.add(
           new CTEvent(
+              eventType,
               eventAnnotation.getBegin(),
               eventAnnotation.getEnd(),
               entry.getValue(),
@@ -143,6 +145,7 @@ public class SerializedCasConverter {
       if (!attachedEventSpans.contains(event)) {
         events.add(
             new CTEvent(
+                eventType,
                 event.getBegin(),
                 event.getEnd(),
                 Collections.emptyList(),
@@ -157,10 +160,7 @@ public class SerializedCasConverter {
     Matcher matcher = pattern.matcher(text);
     if (matcher.find()) {
       String title = matcher.group(1);
-      String id =
-          projectName
-              + "_"
-              + title
+      String id = title
               + "_"
               + FilenameUtils.removeExtension(input.getName())
               + ".json";
@@ -173,7 +173,8 @@ public class SerializedCasConverter {
     }
   }
 
-  private static CAS readCasFromFile(File serializedCasFile) throws IOException, UIMAException {
+  private static CAS readCasFromFile(File serializedCasFile)
+      throws IOException, ResourceInitializationException, ClassNotFoundException, CASException {
     if (!serializedCasFile.exists()) {
       throw new FileNotFoundException(serializedCasFile + " not found");
     }
@@ -184,18 +185,14 @@ public class SerializedCasConverter {
     return cas;
   }
 
-  private static void readSerializedCas(CAS aCas, File aFile) throws IOException {
+  private static void readSerializedCas(CAS aCas, File aFile)
+      throws IOException, CASException, ClassNotFoundException {
     try (ObjectInputStream is = new ObjectInputStream(new FileInputStream(aFile))) {
       CASCompleteSerializer serializer = (CASCompleteSerializer) is.readObject();
       deserializeCASComplete(serializer, (CASImpl) aCas);
       // Initialize the JCas sub-system which is the most often used API in DKPro Core
       // components
       aCas.getJCas();
-    } catch (ClassNotFoundException e) {
-      throw new IOException(e);
-    } catch (CASException e) {
-      log.error("Caught exception {}", e);
-      System.exit(1);
     }
   }
 }

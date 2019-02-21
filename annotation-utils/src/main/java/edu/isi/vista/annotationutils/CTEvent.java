@@ -6,7 +6,7 @@ import java.util.List;
 
 public class CTEvent {
 
-  private String type = "CTEvent";
+  private String eventType;
 
   private int begin;
 
@@ -16,15 +16,16 @@ public class CTEvent {
 
   private boolean negative;
 
-  public CTEvent(int begin, int end, Collection<Argument> arguments, boolean isNegativeExample) {
+  public CTEvent(String eventType, int begin, int end, Collection<Argument> arguments, boolean isNegativeExample) {
+    this.eventType = eventType;
     this.begin = begin;
     this.end = end;
     this.arguments = new ArrayList<>(arguments);
     this.negative = isNegativeExample;
   }
 
-  public String getType() {
-    return type;
+  public String getEventType() {
+    return eventType;
   }
 
   public int getBegin() {
