@@ -2,6 +2,7 @@ package edu.isi.vista.annotationutils;
 
 import static org.apache.uima.cas.impl.Serialization.deserializeCASComplete;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import edu.isi.nlp.parameters.Parameters;
@@ -14,9 +15,8 @@ import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -108,6 +108,7 @@ public class SerializedCasConverter {
 
     ImmutableListMultimap.Builder mapBuilder =
         new ImmutableListMultimap.Builder<CTEventSpan, Argument>();
+    List<CTEventSpan> attachedEventSpans = new ArrayList<>();
 
     // event with arguments are found using relation annotation CTEventSpanType
     for (CTEventSpanType type : JCasUtil.select(jcas, CTEventSpanType.class)) {
@@ -115,6 +116,10 @@ public class SerializedCasConverter {
       String role = type.getRelation_type();
       CTEventSpan event = type.getDependent();
       CTEventSpan argument = type.getGovernor();
+
+      // mark spans as attached
+      attachedEventSpans.add(event);
+      attachedEventSpans.add(argument);
 
       mapBuilder.put(event, new Argument(role, argument.getBegin(), argument.getEnd()));
     }
@@ -126,11 +131,24 @@ public class SerializedCasConverter {
       // create and add event
       CTEventSpan eventAnnotation = entry.getKey();
       events.add(
-          new CTEvent(eventAnnotation.getBegin(), eventAnnotation.getEnd(), entry.getValue()));
+          new CTEvent(
+              eventAnnotation.getBegin(),
+              eventAnnotation.getEnd(),
+              entry.getValue(),
+              eventAnnotation.getNegative_example()));
     }
 
-    // events with no arguments
-    for (CTEventSpan event : JCasUtil.select(jcas, CTEventSpan.class)) {}
+    // catch events with no arguments
+    for (CTEventSpan event : JCasUtil.select(jcas, CTEventSpan.class)) {
+      if (!attachedEventSpans.contains(event)) {
+        events.add(
+            new CTEvent(
+                event.getBegin(),
+                event.getEnd(),
+                Collections.emptyList(),
+                event.getNegative_example()));
+      }
+    }
 
     // Using document ID to name the output files
     // Temporary solution: Making the assumption document ID is present in the document text

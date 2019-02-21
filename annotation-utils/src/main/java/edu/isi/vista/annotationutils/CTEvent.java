@@ -14,10 +14,13 @@ public class CTEvent {
 
   private List<Argument> arguments;
 
-  public CTEvent(int begin, int end, Collection<Argument> arguments) {
+  private boolean negative;
+
+  public CTEvent(int begin, int end, Collection<Argument> arguments, boolean isNegativeExample) {
     this.begin = begin;
     this.end = end;
     this.arguments = new ArrayList<>(arguments);
+    this.negative = isNegativeExample;
   }
 
   public String getType() {
@@ -36,4 +39,7 @@ public class CTEvent {
     return new ArrayList<>(arguments);
   }
 
+  public boolean isNegative() {
+    return negative;
+  }
 }
