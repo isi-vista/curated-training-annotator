@@ -1,6 +1,7 @@
 package edu.isi.vista.annotationutils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class CTEvent {
@@ -13,7 +14,7 @@ public class CTEvent {
 
   private List<Argument> arguments;
 
-  public CTEvent(int begin, int end, List<Argument> arguments) {
+  public CTEvent(int begin, int end, Collection<Argument> arguments) {
     this.begin = begin;
     this.end = end;
     this.arguments = new ArrayList<>(arguments);

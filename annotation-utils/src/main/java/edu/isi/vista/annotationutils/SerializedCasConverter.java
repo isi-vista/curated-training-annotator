@@ -2,9 +2,10 @@ package edu.isi.vista.annotationutils;
 
 import static org.apache.uima.cas.impl.Serialization.deserializeCASComplete;
 
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
 import edu.isi.nlp.parameters.Parameters;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -12,7 +13,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,12 +37,13 @@ import webanno.custom.CTEventSpanType;
 
 public class SerializedCasConverter {
 
-  private static final String USAGE = "SerializedCasConverter param_file\n" +
-      "\tparam file consists of :-separated key-value pairs\n" +
-      "\tThe required parameters are:\n" +
-      "\tprojectName: the name of the project\n" +
-      "\tinputDirectory: the path to a directory with serialized CAS files (.ser)\n" +
-      "\toutputDirectory: the path to a directory where output files to be written to";
+  private static final String USAGE =
+      "SerializedCasConverter param_file\n"
+          + "\tparam file consists of :-separated key-value pairs\n"
+          + "\tThe required parameters are:\n"
+          + "\tprojectName: the name of the project\n"
+          + "\tinputDirectory: the path to a directory with serialized CAS files (.ser)\n"
+          + "\toutputDirectory: the path to a directory where output files to be written to";
 
   private static final Logger log = LoggerFactory.getLogger(SerializedCasConverter.class);
 
@@ -87,7 +89,8 @@ public class SerializedCasConverter {
     }
   }
 
-  private static void export(String projectName, File inputDir, File outputDir) throws IOException, UIMAException {
+  private static void export(String projectName, File inputDir, File outputDir)
+      throws IOException, UIMAException {
     for (File input : inputDir.listFiles()) {
       if (input.isDirectory()) {
         export(projectName, input, outputDir);
@@ -97,32 +100,37 @@ public class SerializedCasConverter {
     }
   }
 
-  private static void exportFile(String projectName, File input, File outputDir) throws IOException, UIMAException {
+  private static void exportFile(String projectName, File input, File outputDir)
+      throws IOException, UIMAException {
 
     CAS cas = readCasFromFile(input);
     JCas jcas = cas.getJCas();
-    Map<CTEventSpan, List<Argument>> eventArguments = new HashMap<>();
 
+    ImmutableListMultimap.Builder mapBuilder =
+        new ImmutableListMultimap.Builder<CTEventSpan, Argument>();
+
+    // event with arguments are found using relation annotation CTEventSpanType
     for (CTEventSpanType type : JCasUtil.select(jcas, CTEventSpanType.class)) {
 
-      CTEventSpan event = type.getGovernor();
       String role = type.getRelation_type();
-      CTEventSpan argument = type.getDependent();
+      CTEventSpan event = type.getDependent();
+      CTEventSpan argument = type.getGovernor();
 
-      if (!eventArguments.containsKey(event)) {
-        eventArguments.put(event, new ArrayList<>());
-      }
-      eventArguments.get(event).add(new Argument(role, argument.getBegin(), argument.getEnd()));
+      mapBuilder.put(event, new Argument(role, argument.getBegin(), argument.getEnd()));
     }
 
+    // Create CTEvent list
+    ImmutableMap<CTEventSpan, Collection<Argument>> map = mapBuilder.build().asMap();
     List<CTEvent> events = new ArrayList<>();
-    for (Map.Entry<CTEventSpan, List<Argument>> entry : eventArguments.entrySet()) {
+    for (Map.Entry<CTEventSpan, Collection<Argument>> entry : map.entrySet()) {
       // create and add event
       CTEventSpan eventAnnotation = entry.getKey();
       events.add(
           new CTEvent(eventAnnotation.getBegin(), eventAnnotation.getEnd(), entry.getValue()));
-
     }
+
+    // events with no arguments
+    for (CTEventSpan event : JCasUtil.select(jcas, CTEventSpan.class)) {}
 
     // Using document ID to name the output files
     // Temporary solution: Making the assumption document ID is present in the document text
@@ -131,7 +139,13 @@ public class SerializedCasConverter {
     Matcher matcher = pattern.matcher(text);
     if (matcher.find()) {
       String title = matcher.group(1);
-      String id =  projectName + "_" + title + "_" + FilenameUtils.removeExtension(input.getName()) + ".json";
+      String id =
+          projectName
+              + "_"
+              + title
+              + "_"
+              + FilenameUtils.removeExtension(input.getName())
+              + ".json";
       ObjectMapper mapper = new ObjectMapper();
       try (OutputStream os = new FileOutputStream(new File(outputDir, id))) {
         mapper.writeValue(os, events);
@@ -139,8 +153,6 @@ public class SerializedCasConverter {
     } else {
       log.error("Missing document id: " + input.getAbsolutePath());
     }
-
-
   }
 
   private static CAS readCasFromFile(File serializedCasFile) throws IOException, UIMAException {
