@@ -16,7 +16,12 @@ public class CTEvent {
 
   private boolean negative;
 
-  public CTEvent(String eventType, int begin, int end, Collection<Argument> arguments, boolean isNegativeExample) {
+  public CTEvent(
+      String eventType,
+      int begin,
+      int end,
+      Collection<Argument> arguments,
+      boolean isNegativeExample) {
     this.eventType = eventType;
     this.begin = begin;
     this.end = end;

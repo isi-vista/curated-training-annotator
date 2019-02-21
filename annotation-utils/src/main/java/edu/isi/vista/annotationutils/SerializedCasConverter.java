@@ -5,6 +5,7 @@ import static org.apache.uima.cas.impl.Serialization.deserializeCASComplete;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
+import de.tudarmstadt.ukp.dkpro.core.api.metadata.type.DocumentMetaData;
 import edu.isi.nlp.parameters.Parameters;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,8 +19,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.uima.UIMAException;
 import org.apache.uima.cas.CAS;
@@ -106,6 +105,7 @@ public class SerializedCasConverter {
 
     CAS cas = readCasFromFile(input);
     JCas jcas = cas.getJCas();
+    String title = DocumentMetaData.get(jcas).getDocumentTitle();
 
     ImmutableListMultimap.Builder mapBuilder =
         new ImmutableListMultimap.Builder<CTEventSpan, Argument>();
@@ -153,23 +153,10 @@ public class SerializedCasConverter {
       }
     }
 
-    // Using document ID to name the output files
-    // Temporary solution: Making the assumption document ID is present in the document text
-    String text = jcas.getDocumentText();
-    Pattern pattern = Pattern.compile("<DOC id=\"([^\"]*)\"");
-    Matcher matcher = pattern.matcher(text);
-    if (matcher.find()) {
-      String title = matcher.group(1);
-      String id = title
-              + "_"
-              + FilenameUtils.removeExtension(input.getName())
-              + ".json";
-      ObjectMapper mapper = new ObjectMapper();
-      try (OutputStream os = new FileOutputStream(new File(outputDir, id))) {
-        mapper.writeValue(os, events);
-      }
-    } else {
-      log.error("Missing document id: " + input.getAbsolutePath());
+    String filename = title + "_" + FilenameUtils.removeExtension(input.getName()) + ".json";
+    ObjectMapper mapper = new ObjectMapper();
+    try (OutputStream os = new FileOutputStream(new File(outputDir, filename))) {
+      mapper.writeValue(os, events);
     }
   }
 
