@@ -66,20 +66,8 @@ public class SerializedCasConverter {
     }
 
     String eventType = parameters.getString(PARAM_EVENT_TYPE);
-    File inputDir = new File(parameters.getString(PARAM_INPUT_DIRECTORY));
-    File outputDir = new File(parameters.getString(PARAM_OUTPUT_DIRECTORY));
-
-    if (!inputDir.exists() || !inputDir.isDirectory()) {
-      log.error("Invalid input directory.");
-      System.exit(1);
-    }
-
-    if (!outputDir.exists()) {
-      outputDir.mkdirs();
-    } else if (!outputDir.isDirectory()) {
-      log.error("Invalid output directory");
-      System.exit(1);
-    }
+    File inputDir = parameters.getExistingDirectory(PARAM_INPUT_DIRECTORY);
+    File outputDir = parameters.getCreatableDirectory(PARAM_OUTPUT_DIRECTORY);
 
     try {
       export(eventType, inputDir, outputDir);
