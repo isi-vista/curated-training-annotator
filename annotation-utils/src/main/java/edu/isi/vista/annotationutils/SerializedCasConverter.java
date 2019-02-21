@@ -153,10 +153,11 @@ public class SerializedCasConverter {
       }
     }
 
+    Document document = new Document(title, events);
     String filename = title + "_" + FilenameUtils.removeExtension(input.getName()) + ".json";
     ObjectMapper mapper = new ObjectMapper();
     try (OutputStream os = new FileOutputStream(new File(outputDir, filename))) {
-      mapper.writeValue(os, events);
+      mapper.writeValue(os, document);
     }
   }
 
