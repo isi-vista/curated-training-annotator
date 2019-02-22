@@ -20,3 +20,25 @@ sudo yum install wget
 wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://link_copied_from_site"
 sudo yum install jdk-8u202-linux-x64.rpm
 ```
+
+# Install `mysql`
+
+```
+wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+sudo rpm -ivh mysql-community-release-el7-5.noarch.rpm
+sudo yum update
+sudo yum install mysql-server
+```
+
+Add the following to `/etc/my.cnf`:
+```
+character-set-server = utf8
+collation-server     = utf8_bin
+default-character-set = utf8
+```
+
+Then
+
+```
+mysql -u root -p
+```
