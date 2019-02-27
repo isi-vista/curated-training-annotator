@@ -90,3 +90,13 @@ backup.keep.number=10
 ```
 sudo chown -R www-data /srv/inception
 ```
+
+# Set up git
+This is just because we want to run from the GitHub `master` branch and not a stable release.
+```
+sudo yum install git
+# clone can be in a user home directory or wherever
+git clone https://github.com/inception-project/inception.git
+cd inception
+mvn install
+```
