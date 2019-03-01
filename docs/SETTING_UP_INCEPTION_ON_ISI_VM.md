@@ -91,12 +91,22 @@ backup.keep.number=10
 sudo chown -R www-data /srv/inception
 ```
 
+# Set up Maven
+
+This is so we can build Inception because we want to run a newer version than their last stable release.
+The version of Maven installable via `yum` on CentOS is too old (as of this writing), so we install manually:
+```
+wget http://apache.mirrors.lucidnetworks.net/maven/maven-3/3.6.0/binaries/apache-maven-3.6.0-bin.tar.gz
+tar xzvf apache-maven-3.6.0-bin.tar.gz
+```
+
+Then add `apache-maven-3.6.0/bin` to your `PATH`
+
+
 # Set up git
 This is just because we want to run from the GitHub `master` branch and not a stable release.
 ```
 sudo yum install git
 # clone can be in a user home directory or wherever
 git clone https://github.com/inception-project/inception.git
-cd inception
-mvn install
 ```
