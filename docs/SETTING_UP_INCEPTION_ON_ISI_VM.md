@@ -103,10 +103,36 @@ tar xzvf apache-maven-3.6.0-bin.tar.gz
 Then add `apache-maven-3.6.0/bin` to your `PATH`
 
 
-# Set up git
+# Set up git and build Inception
 This is just because we want to run from the GitHub `master` branch and not a stable release.
 ```
 sudo yum install git
 # clone can be in a user home directory or wherever
 git clone https://github.com/inception-project/inception.git
+cd inception
+mvn install -DskipTests
+cp inception-app-webapp/target/inception-app-standalone-0.8.0-SNAPSHOT.jar /srv/inception/inception.jar
+sudo chown www-data:www-data /srv/inception/inception.jar
 ```
+
+We skip tests because Inception has some which seem to depend on external servers which aren't always available.
+
+Add the following to `/srv/inception/inception.conf`:
+```
+JAVA_OPTS="-Djava.awt.headless=true -Dinception.home=/srv/inception"
+```
+
+Then
+```
+sudo chown root:root /srv/inception/inception.conf
+```
+
+# Set Inception to run at startup
+```
+sudo ln -s /srv/inception/inception.jar /etc/init.d/inception
+sudo systemctl enable inception
+```
+```
+
+
+
