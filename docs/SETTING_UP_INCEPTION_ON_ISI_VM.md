@@ -85,6 +85,8 @@ backup.keep.time=2592000
 backup.interval=300
 
 backup.keep.number=10
+
+external-search.enabled=true
 ```
 
 ```
