@@ -127,7 +127,7 @@ public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigaw
       }
     }
     
-    return new ConcatenatedGigawordDocuments(docText, articleList);
+    return new ConcatenatedGigawordDocuments("", articleList);
   }
   
   public Iterator<Article> iterator() {
