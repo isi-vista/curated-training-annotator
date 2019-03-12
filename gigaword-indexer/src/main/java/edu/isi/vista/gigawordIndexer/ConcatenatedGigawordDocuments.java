@@ -47,87 +47,81 @@ public class ConcatenatedGigawordDocuments implements Iterable<ConcatenatedGigaw
 
   public static ConcatenatedGigawordDocuments fromAnnotatedGigwordGZippedFile(Path p) throws IOException {
     // Initialize Streams
-    InputStream fileInputStream = new FileInputStream(p.toString());
-    GZIPInputStream gzipInputStream = new GZIPInputStream(fileInputStream);
-    InputStreamReader inputStreamReader = new InputStreamReader(gzipInputStream);
-    BufferedReader br = new BufferedReader(inputStreamReader);
-    String sCurrentLine;
+    try (InputStream fileInputStream = new FileInputStream(p.toString());
+         GZIPInputStream gzipInputStream = new GZIPInputStream(fileInputStream);
+         InputStreamReader inputStreamReader = new InputStreamReader(gzipInputStream);
+         BufferedReader br = new BufferedReader(inputStreamReader)) {
+
+        String sCurrentLine;
     
-    // variables for start of a new document
-    Pattern GIGAWORD_DOC_ELEMENT_PATTERN = Pattern.compile("<DOC id=\"(.*?)\".*>");
-    String currentDocId = "";
+        // variables for start of a new document
+        Pattern GIGAWORD_DOC_ELEMENT_PATTERN = Pattern.compile("<DOC id=\"(.*?)\".*>");
+        String currentDocId = "";
     
-    // variables for saving articles
-    boolean headlineStarted = false;
-    boolean textStarted = false;
-    String docText = "";
-    List<Article> articleList = new ArrayList<>();
+        // variables for saving articles
+        boolean headlineStarted = false;
+        boolean textStarted = false;
+        String docText = "";
+        List<Article> articleList = new ArrayList<>();
     
     
-    // read file
-    while((sCurrentLine = br.readLine()) != null) {
-      
-      sCurrentLine = sCurrentLine.trim();
-      
-      // extract document ID
-      if(sCurrentLine.startsWith("<DOC id="))
-      {
-        Matcher m = GIGAWORD_DOC_ELEMENT_PATTERN.matcher(sCurrentLine);
-        if(m.find()) {
-          currentDocId = m.group(1);
+        // read file
+        while ((sCurrentLine = br.readLine()) != null) {
+    
+            sCurrentLine = sCurrentLine.trim();
+    
+            // extract document ID
+            if (sCurrentLine.startsWith("<DOC id=")) {
+                Matcher m = GIGAWORD_DOC_ELEMENT_PATTERN.matcher(sCurrentLine);
+                if (m.find()) {
+                    currentDocId = m.group(1);
+                }
+                else {
+                    throw new RuntimeException("Missing document ID on article");
+                }
+            }
+    
+            // create article when end of document (</TEXT>) is reached
+            if (sCurrentLine.equals("</TEXT>")) {
+                articleList.add(new Article(currentDocId, docText));
+                docText = "";
+                textStarted = false;
+            }
+    
+            if (sCurrentLine.equals("</HEADLINE>")) {
+                docText += "\n\n";
+                headlineStarted = false;
+            }
+    
+            // read lines from document text
+            if ((headlineStarted || textStarted) && !sCurrentLine.startsWith("<")) {
+                if (sCurrentLine.equals("")) {
+                    docText += "\n";
+                }
+                else if (sCurrentLine.startsWith("(")) {
+                    String parsedText = PennTreeUtils.toText(PennTreeUtils.parsePennTree(sCurrentLine));
+                    if (!parsedText.equals("null")) {
+                        docText += parsedText + " ";
+                    }
+                }
+                // sometimes there is one unannotated line in the document which can be used as plain text
+                else {
+                    docText += sCurrentLine + " ";
+                }
+            }
+    
+            // start saving text when start of document (<TEXT>) is observed
+            if (sCurrentLine.equals("<TEXT>")) {
+                textStarted = true;
+            }
+    
+            if (sCurrentLine.equals("<HEADLINE>")) {
+                headlineStarted = true;
+            }
         }
-        else
-        {
-          throw new RuntimeException("Missing document ID on article");
-        }
-      }
-      
-      // create article when end of document (</TEXT>) is reached
-      if (sCurrentLine.equals("</TEXT>"))
-      {
-        articleList.add(new Article(currentDocId, docText));
-        docText = "";
-        textStarted = false;
-      }
-      
-      if(sCurrentLine.equals("</HEADLINE>"))
-      {
-        docText += "\n\n";
-        headlineStarted = false;
-      }
-      
-      // read lines from document text
-      if ((headlineStarted || textStarted) && !sCurrentLine.startsWith("<")) {
-        if(sCurrentLine.equals(""))
-        {
-          docText += "\n";
-        }
-        else if (sCurrentLine.startsWith("("))
-        {
-          String parsedText = PennTreeUtils.toText(PennTreeUtils.parsePennTree(sCurrentLine));
-          if(!parsedText.equals("null"))
-          {
-            docText += parsedText + " ";
-          }
-        }
-        // sometimes there is one unannotated line in the document which can be used as plain text
-        else
-        {
-          docText += sCurrentLine + " ";
-        }
-      }
-      
-      // start saving text when start of document (<TEXT>) is observed
-      if (sCurrentLine.equals("<TEXT>")) {
-        textStarted = true;
-      }
-      
-      if (sCurrentLine.equals("<HEADLINE>")) {
-        headlineStarted = true;
-      }
+    
+        return new ConcatenatedGigawordDocuments("", articleList);
     }
-    
-    return new ConcatenatedGigawordDocuments("", articleList);
   }
   
   public Iterator<Article> iterator() {
