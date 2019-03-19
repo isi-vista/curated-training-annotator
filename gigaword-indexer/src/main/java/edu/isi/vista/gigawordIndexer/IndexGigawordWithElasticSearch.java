@@ -127,12 +127,12 @@ public class IndexGigawordWithElasticSearch {
   private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
     log.info("Indexing {}", file.toAbsolutePath());
 
-    ConcatenatedGigawordDocuments concatenatedGigawordDocuments;
+    Iterable<ConcatenatedGigawordDocuments.Article> concatenatedGigawordDocuments;
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
     if (file.toString().toLowerCase().endsWith(".xml.gz")) {
       log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
           + "Make sure you are using the plain version LDC2011T07.");
-      concatenatedGigawordDocuments = ConcatenatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(file);
+      concatenatedGigawordDocuments = ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(file);
     }
     else
     {
@@ -144,6 +144,7 @@ public class IndexGigawordWithElasticSearch {
     for (List<Article> articles : partition(concatenatedGigawordDocuments, 100)) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
+        System.out.println(article.getId());
         XContentBuilder sourceBuilder =
             buildSourceObject(article, "en", "", new Date().toString(), "");
         bulkRequest.add(
