@@ -51,7 +51,7 @@ gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
 
 Then, run:
 ```
-indexGigaword index_gigaword.english.params
+gigaword-indexer/target/appassembler/bin/indexGigaword index_gigaword.english.params
 ```
 
 It will take a while to complete indexing for entire dataset. When indexing is done, a simple test of the search engine can be done with
