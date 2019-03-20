@@ -1,5 +1,5 @@
 ### Upload Dataset for index
-1. Upload English Gigaword V5 to /lfs1/eng.gigaword.v5/
+1. Upload English Gigaword V5 (catalog_id: LDC2011T07) to /lfs1/eng.gigaword.v5/
 2. Unpack the dataset:
 ```
 cd /lfs1/eng.gigaword.v5/
@@ -35,15 +35,7 @@ tar xzvf apache-maven-3.6.0-bin.tar.gz
 
 Then add **apache-maven-3.6.0/bin** to your _PATH_
 
-### Build gigaword-indexer
-Download and install nlp-util first, which is required by gigaword-indexer:
-```
-git clone https://github.com/isi-nlp/nlp-util.git
-cd nlp-util
-mvn clean install
-```
-
-Then install gigaword-indexer:
+### Install gigaword-indexer:
 ```
 git clone https://github.com/isi-vista/curated-training-annotator.git
 cd curated-training-annotator
@@ -51,7 +43,7 @@ mvn clean install
 ```
 
 ### English Gigaword V5 Indexing
-In the build of gigaword-indexer, create a parameter file **index_gigaword.gabbard.params** which has following parameters:
+In the build of gigaword-indexer, create a parameter file **index_gigaword.english.params** which has following parameters:
 ```
 indexName: gigaword
 gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
@@ -59,17 +51,23 @@ gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
 
 Then, run:
 ```
-indexGigaword index_gigaword.gabbard.params
+indexGigaword index_gigaword.english.params
 ```
 
-It will take a while to complete indexing for entire dataset. When indexing is done, simple test can be done to monitor the healthy of the search engine:
+It will take a while to complete indexing for entire dataset. When indexing is done, a simple test of the search engine can be done with
 1. Check the index of database:
 ```
 curl -XGET 'http://localhost:9200/_cat/indices?v'
+```
+
+Following outputs are expected:
+```
+health status index    uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+yellow open   gigaword E4YrepZPR8qydtOl7wjaIQ   5   1    9875524            0     26.6gb         26.6gb
 ```
 
 2. A simple query:
 ```
 curl -XGET http://localhost:9200/_search?q=USA
 ```
-
+A JSON file that reports the search results (including seach time, hit number and documents that contain the keywords) is expected.
