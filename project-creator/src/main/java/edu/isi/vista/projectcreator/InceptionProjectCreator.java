@@ -93,7 +93,6 @@ public class InceptionProjectCreator {
       InputStreamReader reader = new InputStreamReader(responseStream);
       StringWriter writer = new StringWriter();
       IOUtils.copy(reader, writer);
-      client.close();
       return writer.toString();
     }
   }
