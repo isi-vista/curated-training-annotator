@@ -113,7 +113,7 @@ sudo yum install git
 git clone https://github.com/inception-project/inception.git
 cd inception
 mvn install -DskipTests
-cp inception-app-webapp/target/inception-app-standalone-0.8.0-SNAPSHOT.jar /srv/inception/inception.jar
+cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
 sudo chown www-data:www-data /srv/inception/inception.jar
 ```
 
@@ -144,7 +144,7 @@ From the Inception working copy's `master` branch:
 git pull --rebase
 (if you need to use another branch, check it out)
 mvn install -DskipTest
-cp inception-app-webapp/target/inception-app-standalone-0.8.0-SNAPSHOT.jar /srv/inception/inception.jar
+cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
 systemctl restart inception
 ```
 
