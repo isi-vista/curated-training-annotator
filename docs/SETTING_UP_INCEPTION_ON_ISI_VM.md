@@ -137,4 +137,22 @@ sudo systemctl enable inception
 ```
 
 
+# How to sync Inception with the main repository
 
+You will need to use `sudo` for most or all of these commands. 
+From the Inception working copy's `master` branch:
+```
+git pull --rebase
+(if you need to use another branch, check it out)
+mvn install -DskipTest
+cp inception-app-webapp/target/inception-app-standalone-0.8.0-SNAPSHOT.jar /srv/inception/inception.jar
+systemctl restart inception
+```
+
+We skip the tests because they are time consuming and we assume Inception's CI has already run them.
+
+# How to inspect the Inception logs for errors
+
+```
+sudo less /var/log/inception.log
+```
