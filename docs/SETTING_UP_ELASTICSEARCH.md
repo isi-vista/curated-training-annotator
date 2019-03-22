@@ -71,3 +71,9 @@ yellow open   gigaword E4YrepZPR8qydtOl7wjaIQ   5   1    9875524            0   
 curl -XGET http://localhost:9200/_search?q=USA
 ```
 A JSON file that reports the search results (including seach time, hit number and documents that contain the keywords) is expected.
+
+### Checking ElasticSearch logs
+
+```
+less /lfs1/ElasticSearch/elasticsearch-6.6.1/logs/elasticsearch.log
+```
