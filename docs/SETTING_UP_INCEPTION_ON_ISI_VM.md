@@ -134,7 +134,6 @@ sudo chown root:root /srv/inception/inception.conf
 sudo ln -s /srv/inception/inception.jar /etc/init.d/inception
 sudo systemctl enable inception
 ```
-```
 
 
 # How to sync Inception with the main repository
