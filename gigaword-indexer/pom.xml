@@ -56,6 +56,14 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>edu.isi.vista</groupId>
+			<artifactId>nlp-core-open</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>edu.isi.vista</groupId>
+			<artifactId>common-core-open</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
 		</dependency>

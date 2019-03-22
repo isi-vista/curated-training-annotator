@@ -61,7 +61,12 @@
 			<dependency>
 				<groupId>edu.isi.vista</groupId>
 				<artifactId>common-core-open</artifactId>
-				<version>7.6.4-SNAPSHOT</version>
+				<version>8.0.0</version>
+			</dependency>
+			<dependency>
+				<groupId>edu.isi.vista</groupId>
+				<artifactId>nlp-core-open</artifactId>
+				<version>8.0.0</version>
 			</dependency>
 
 			<!-- external dependencies -->
