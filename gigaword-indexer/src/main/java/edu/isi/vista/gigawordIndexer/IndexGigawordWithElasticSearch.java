@@ -1,7 +1,6 @@
 package edu.isi.vista.gigawordIndexer;
 
 import edu.isi.nlp.parameters.Parameters;
-import edu.isi.vista.gigawordIndexer.ConcatenatedGigawordDocuments.Article;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -57,6 +56,10 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_GIGAWORD_DIRECTORY_PATH = "gigawordDirectoryPath";
 
+  private static final String PARAM_FORMAT = "format";
+
+  private static final String PARAM_LANGUAGE = "lang";
+
   private static final String PARAM_INDEX_NAME = "indexName";
 
   private static final String PARAM_HOSTNAME_PRIMARY = "primaryHostName";
@@ -81,16 +84,24 @@ public class IndexGigawordWithElasticSearch {
 
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
+      final String format = parameters.getOptionalString(PARAM_FORMAT).orNull();
+      final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
-        final PathMatcher gzippedConcatenatedFilePattern = FileSystems.getDefault().getPathMatcher(
-                "glob:**/data/**/*.gz");
-        final Path gigawordDir = parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH).toPath();
+        PathMatcher filePattern;
+        if (format != null && format.equalsIgnoreCase("LTF")) {
+          filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.xml");
+        } else {
+          filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
+        }
+        final Path gigawordDir =
+            parameters.getExistingDirectory(PARAM_GIGAWORD_DIRECTORY_PATH).toPath();
         try (Stream<Path> gigawordFiles = Files.walk(gigawordDir)) {
           gigawordFiles
-                  .filter(gzippedConcatenatedFilePattern::matches)
-                  .forEach(gzippedConcatenatedFile -> {
+              .filter(filePattern::matches)
+              .forEach(
+                  gzippedConcatenatedFile -> {
                     try {
-                          index(client, gzippedConcatenatedFile, indexName);
+                      index(client, gzippedConcatenatedFile, indexName, format, lang);
                     } catch (IOException e) {
                       throw new RuntimeException(e);
                     }
@@ -98,7 +109,7 @@ public class IndexGigawordWithElasticSearch {
         }
       } else {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
-        index(client, concatenatedFileToIndex.toPath(), indexName);
+        index(client, concatenatedFileToIndex.toPath(), indexName, format, lang);
       }
 
     } catch (Exception e) {
@@ -124,7 +135,7 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
+  private static void index(RestHighLevelClient client, Path file, String indexName, String format, String lang) throws IOException {
     log.info("Indexing {}", file.toAbsolutePath());
 
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
@@ -135,11 +146,17 @@ public class IndexGigawordWithElasticSearch {
 
     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
     // making huge requests of unbounded size
-    for (List<Article> articles : partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100)) {
+    Iterable<List<Article>> iterator ;
+    if (format != null && format.equalsIgnoreCase("ltf")) {
+      iterator = partition(LTFDocuments.fromLtfFile(file), 100);
+    } else {
+      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100);
+    }
+    for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
         XContentBuilder sourceBuilder =
-            buildSourceObject(article, "en", "", new Date().toString(), "");
+            buildSourceObject(article, lang, "", new Date().toString(), "");
         bulkRequest.add(
             new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
       }

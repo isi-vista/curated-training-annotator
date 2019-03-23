@@ -2,19 +2,24 @@ package edu.isi.vista.gigawordIndexer;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.io.Resources;
 import edu.isi.nlp.corpora.LctlText;
 import edu.isi.nlp.corpora.LtfDocument;
+import edu.isi.nlp.corpora.LtfDocumentElement;
 import edu.isi.nlp.corpora.LtfReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.Random;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LTFDocuments implements Iterable<LTFDocuments.Article>{
+public class LTFDocuments implements Iterable<Article>{
 
   private static final Logger log = LoggerFactory.getLogger(LTFDocuments.class);
 
@@ -26,7 +31,7 @@ public class LTFDocuments implements Iterable<LTFDocuments.Article>{
       Iterator<Article> iterator = documents.iterator();
       while(iterator.hasNext()) {
         Article article = iterator.next();
-        log.debug(article.toString());
+        log.info(article.toString());
       }
     } catch (IOException e) {
       e.printStackTrace();
@@ -63,33 +68,6 @@ public class LTFDocuments implements Iterable<LTFDocuments.Article>{
 //    return new LTFDocuments(texts);
 //  }
 
-  public static class Article {
-    private String id;
-    private String text;
-
-    private Article(String id, String text) {
-      this.id = id;
-      this.text = text;
-    }
-
-    public String getId() {
-      return id;
-    }
-
-    public String getText() {
-      return text;
-    }
-
-    @Override
-    public String toString() {
-      return "Article [id="
-          + id
-          + ", text="
-          + text.substring(0, Math.min(100, text.length() - 1))
-          + "...]";
-    }
-  }
-
   private class ArticlesIterator extends AbstractIterator<Article> {
 
     ImmutableList<LtfDocument> docs = lctlTexts.getDocuments();
@@ -102,7 +80,9 @@ public class LTFDocuments implements Iterable<LTFDocuments.Article>{
       }
 
       LtfDocument doc = docs.get(index);
-      Article article = new Article("id", doc.getOriginalText().content().utf16CodeUnits());
+
+      String id = RandomStringUtils.random(10, true, true);
+      Article article = new Article(id, doc.getOriginalText().content().utf16CodeUnits());
       index++;
       return article;
 

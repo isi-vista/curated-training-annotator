@@ -58,6 +58,8 @@
 	<dependencyManagement>
 		<dependencies>
 			<!-- intra-project dependnecies -->
+
+			<!-- external dependencies -->
 			<dependency>
 				<groupId>edu.isi.vista</groupId>
 				<artifactId>common-core-open</artifactId>
@@ -68,8 +70,6 @@
 				<artifactId>nlp-core-open</artifactId>
 				<version>8.0.0</version>
 			</dependency>
-
-			<!-- external dependencies -->
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
