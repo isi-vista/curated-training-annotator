@@ -101,7 +101,15 @@ public class LTFDocuments implements Iterable<Article>{
 
       String id = RandomStringUtils.random(10, true, true);
 
-      Article article = new Article(id, doc.getOriginalText().content().utf16CodeUnits());
+      Article article;
+      try {
+        article = new Article(id, doc.getOriginalText().content().utf16CodeUnits());
+      } catch (Exception e) {
+        // avoid crash due to checksum error
+        log.error("Exception getting document content: {}", e.getMessage());
+        index++;
+        return computeNext();
+      }
       index++;
       return article;
 

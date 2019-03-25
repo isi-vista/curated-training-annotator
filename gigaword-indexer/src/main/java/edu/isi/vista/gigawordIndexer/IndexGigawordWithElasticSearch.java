@@ -154,7 +154,6 @@ public class IndexGigawordWithElasticSearch {
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
-        log.info(article.toString());
         XContentBuilder sourceBuilder =
             buildSourceObject(article, lang, "", new Date().toString(), "");
         bulkRequest.add(
