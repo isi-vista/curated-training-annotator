@@ -89,7 +89,7 @@ public class IndexGigawordWithElasticSearch {
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
         PathMatcher filePattern;
         if (format != null && format.equalsIgnoreCase("LTF")) {
-          filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.xml");
+          filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
         } else {
           filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
         }
@@ -136,7 +136,6 @@ public class IndexGigawordWithElasticSearch {
   }
 
   private static void index(RestHighLevelClient client, Path file, String indexName, String format, String lang) throws IOException {
-    log.info("Indexing {}", file.toAbsolutePath());
 
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
     if (file.toString().toLowerCase().endsWith(".xml.gz")) {
@@ -148,19 +147,20 @@ public class IndexGigawordWithElasticSearch {
     // making huge requests of unbounded size
     Iterable<List<Article>> iterator ;
     if (format != null && format.equalsIgnoreCase("ltf")) {
-      iterator = partition(LTFDocuments.fromLtfFile(file), 100);
+      iterator = partition(LTFDocuments.fromLTFZippedFile(file), 100);
     } else {
       iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100);
     }
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
+        log.info(article.toString());
         XContentBuilder sourceBuilder =
             buildSourceObject(article, lang, "", new Date().toString(), "");
         bulkRequest.add(
             new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
       }
-
+      log.info("Sending indexing request");
       BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
       if (bulkResponse.hasFailures()) {
         throw new RuntimeException(bulkResponse.buildFailureMessage());

@@ -2,19 +2,18 @@ package edu.isi.vista.gigawordIndexer;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.UnmodifiableIterator;
-import com.google.common.io.Resources;
 import edu.isi.nlp.corpora.LctlText;
 import edu.isi.nlp.corpora.LtfDocument;
-import edu.isi.nlp.corpora.LtfDocumentElement;
 import edu.isi.nlp.corpora.LtfReader;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,64 +23,84 @@ public class LTFDocuments implements Iterable<Article>{
   private static final Logger log = LoggerFactory.getLogger(LTFDocuments.class);
 
   public static void main(String[] args) {
-    // test
+    // this is for testing this class only
     try {
-      File file = new File("/Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text/ltf/IL4_DF_020072_20030212_G0040FIVA.ltf.xml");
-      LTFDocuments documents = LTFDocuments.fromLtfFile(file.toPath());
-      Iterator<Article> iterator = documents.iterator();
-      while(iterator.hasNext()) {
-        Article article = iterator.next();
-        log.info(article.toString());
+      File file = new File("/Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text/set0.ltf.zip");
+      LTFDocuments docs = LTFDocuments.fromLTFZippedFile(file.toPath());
+      Iterator<Article> iterator = docs.iterator();
+      while (iterator.hasNext()) {
+        Article a = iterator.next();
+        log.info(a.toString());
       }
     } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
-  private LctlText lctlTexts;
+  private ZipFile zipFile;
+  private Enumeration<? extends ZipEntry> ltfZipEntries;
 
   @Override
   public Iterator<Article> iterator() {
     return new ArticlesIterator();
   }
 
-  private LTFDocuments(LctlText text) {
-    lctlTexts = text;
+  private LTFDocuments(ZipFile zipFile) {
+    this.zipFile = zipFile;
+    this.ltfZipEntries = zipFile.entries();
+
   }
 
-  public static LTFDocuments fromLtfFile(Path p) throws IOException {
-    LctlText loadedLctlText = (new LtfReader()).read(Resources.asCharSource(p.toUri().toURL(), StandardCharsets.UTF_8));
-    return new LTFDocuments(loadedLctlText);
-  }
+  public static LTFDocuments fromLTFZippedFile(Path p) throws IOException {
 
-//  public static LTFDocuments fromLTFZippedFile(Path p) throws IOException {
-//    List<LctlText> texts = new ArrayList<>();
-//    LtfReader reader = new LtfReader();
-//
-//    ZipFile zipFile = new ZipFile(p.toFile(), StandardCharsets.UTF_8);
-//    Enumeration<? extends ZipEntry> entries = zipFile.entries();
-//    while(entries.hasMoreElements()) {
-//      ZipEntry entry = entries.nextElement();
-//      InputStream is = zipFile.getInputStream(entry);
-//      texts.add(reader.read(new ZipEntryByteSource(is).asCharSource(StandardCharsets.UTF_8)));
-//    }
-//    return new LTFDocuments(texts);
-//  }
+    ZipFile zipFile = new ZipFile(p.toFile(), StandardCharsets.UTF_8);
+    return new LTFDocuments(zipFile);
+  }
 
   private class ArticlesIterator extends AbstractIterator<Article> {
+    private LtfReader reader;
+    private ImmutableList<LtfDocument> docs;
+    private int index;
 
-    ImmutableList<LtfDocument> docs = lctlTexts.getDocuments();
-    int index = 0;
+    private ArticlesIterator() {
+      reader = new LtfReader();
+
+      // get first zip file entry
+      nextZipEntry();
+    }
+
+    private int nextZipEntry() {
+      if (ltfZipEntries.hasMoreElements()) {
+        ZipEntry entry = ltfZipEntries.nextElement();
+        try (InputStream is = zipFile.getInputStream(entry)) {
+          if (entry.getName().endsWith(".ltf.xml")) {
+            LctlText lctlText =
+                reader.read(new ZipEntryByteSource(is).asCharSource(StandardCharsets.UTF_8));
+            docs = lctlText.getDocuments();
+            index = 0;
+            return 1;
+          } else {
+            return nextZipEntry();
+          }
+        } catch (IOException e) {
+          log.error("Caught exception: {}", e);
+        }
+      }
+      return -1; // no more entries
+    }
 
     @Override
     protected Article computeNext() {
       if (index >= docs.size()) {
-        return endOfData();
+        if (nextZipEntry() == -1) {
+          return endOfData();
+        }
       }
 
       LtfDocument doc = docs.get(index);
 
       String id = RandomStringUtils.random(10, true, true);
+
       Article article = new Article(id, doc.getOriginalText().content().utf16CodeUnits());
       index++;
       return article;
