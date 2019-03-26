@@ -1,7 +1,6 @@
 package edu.isi.vista.gigawordIndexer;
 
 import edu.isi.nlp.parameters.Parameters;
-import edu.isi.vista.gigawordIndexer.ConcatenatedGigawordDocuments.Article;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -39,8 +38,8 @@ public class IndexGigawordWithElasticSearch {
           "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
           "\tgigawordDirectoryPath: the path to a directory where LDC2011T07 (English Gigaword 5th edition)\n" +
           "\t\thas been extracted. \n" +
-          "\tMake sure the version is the plain Gigaword (LDC2011T07) file and not the other versions." +
-          "\n" +
+          "\tcorpusFormat: flag whether the version if Gigaword is plain (\"gigaword\") or " +
+          "annotated (\"annotated_gigaword\")\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
 
@@ -52,6 +51,8 @@ public class IndexGigawordWithElasticSearch {
   private static final int DEFAULT_PORT_PRI = 9200;
 
   private static final int DEFAULT_PORT_SEC = 9201;
+  
+  private static final String PARAM_CORPUS_FORMAT = "corpusFormat";
 
   private static final String PARAM_GIGAWORD_FILEPATH = "gigawordFilePath";
 
@@ -81,6 +82,7 @@ public class IndexGigawordWithElasticSearch {
 
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
+      final String corpusFormat = parameters.getString(PARAM_CORPUS_FORMAT);
       if (parameters.isPresent(PARAM_GIGAWORD_DIRECTORY_PATH)) {
         final PathMatcher gzippedConcatenatedFilePattern = FileSystems.getDefault().getPathMatcher(
                 "glob:**/data/**/*.gz");
@@ -90,7 +92,7 @@ public class IndexGigawordWithElasticSearch {
                   .filter(gzippedConcatenatedFilePattern::matches)
                   .forEach(gzippedConcatenatedFile -> {
                     try {
-                          index(client, gzippedConcatenatedFile, indexName);
+                          index(client, gzippedConcatenatedFile, indexName, corpusFormat);
                     } catch (IOException e) {
                       throw new RuntimeException(e);
                     }
@@ -98,7 +100,7 @@ public class IndexGigawordWithElasticSearch {
         }
       } else {
         File concatenatedFileToIndex = parameters.getExistingFile(PARAM_GIGAWORD_FILEPATH);
-        index(client, concatenatedFileToIndex.toPath(), indexName);
+        index(client, concatenatedFileToIndex.toPath(), indexName, corpusFormat);
       }
 
     } catch (Exception e) {
@@ -124,19 +126,22 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  private static void index(RestHighLevelClient client, Path file, String indexName) throws IOException {
+  private static void index(RestHighLevelClient client, Path file, String indexName, String corpusFormat) throws IOException {
     log.info("Indexing {}", file.toAbsolutePath());
 
-    Iterable<ConcatenatedGigawordDocuments.Article> concatenatedGigawordDocuments;
-    // If file ends with .xml.gz, this may be the wrong version of Gigaword.
-    if (file.toString().toLowerCase().endsWith(".xml.gz")) {
-      log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
-          + "Make sure you are using the plain version LDC2011T07.");
+    Iterable<Article> concatenatedGigawordDocuments = null;
+    if (corpusFormat.equals("annotated_gigaword")) {
+      log.warn("Indexing an annotated version of Gigaword. Please note that this procedure does not preserve " +
+              "the offsets from the original document texts and therefore cannot be used for " +
+              "the curated training process.");
       concatenatedGigawordDocuments = ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(file);
     }
-    else
-    {
+    else if (corpusFormat.equals("gigaword")) {
       concatenatedGigawordDocuments = ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file);
+    }
+    else {
+      System.err.println(USAGE);
+      System.exit(1);
     }
 
     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
@@ -144,7 +149,6 @@ public class IndexGigawordWithElasticSearch {
     for (List<Article> articles : partition(concatenatedGigawordDocuments, 100)) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
-        System.out.println(article.getId());
         XContentBuilder sourceBuilder =
             buildSourceObject(article, "en", "", new Date().toString(), "");
         bulkRequest.add(

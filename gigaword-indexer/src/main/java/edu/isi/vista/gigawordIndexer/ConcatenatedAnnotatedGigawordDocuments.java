@@ -17,14 +17,17 @@ import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 /**
- * The LDC distributes Gigaword as a moderate number of gzipped files, each of which has many documents
- * concatenated together.  This class lets you iterate over the documents stored in such a file.
+ * The LDC distributes annotated Gigaword as a moderate number of gzipped files, each of which has many documents
+ * concatenated together. This class lets you iterate over the documents stored in such a file.
+ * This class does not preserve the offsets from the original document texts and therefore cannot be used for
+ * the curated training process. This class was authored by the UKP Lab of Technische Universität Darmstadt and
+ * is included here for their convenience.
  */
 
-public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<ConcatenatedGigawordDocuments.Article> {
-    private List<ConcatenatedGigawordDocuments.Article> articleList;
+public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Article> {
+    private List<Article> articleList;
     
-    private ConcatenatedAnnotatedGigawordDocuments(List<ConcatenatedGigawordDocuments.Article> aArticleList) {
+    private ConcatenatedAnnotatedGigawordDocuments(List<Article> aArticleList) {
         this.articleList = aArticleList;
     }
     
@@ -45,7 +48,7 @@ public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Concaten
             boolean headlineStarted = false;
             boolean textStarted = false;
             StringBuilder docText = new StringBuilder();
-            List<ConcatenatedGigawordDocuments.Article> articleList = new ArrayList<>();
+            List<Article> articleList = new ArrayList<>();
             
             
             // read file
@@ -66,7 +69,7 @@ public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Concaten
                 
                 // create article when end of document (</TEXT>) is reached
                 if (sCurrentLine.equals("</TEXT>")) {
-                    articleList.add(new ConcatenatedGigawordDocuments.Article(currentDocId, docText.toString().trim()));
+                    articleList.add(new Article(currentDocId, docText.toString().trim()));
                     docText = new StringBuilder();
                     textStarted = false;
                 }
@@ -107,16 +110,16 @@ public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Concaten
         }
     }
     
-    public Iterator<ConcatenatedGigawordDocuments.Article> iterator() {
+    public Iterator<Article> iterator() {
         return new AnnotatedArticlesIterator();
     }
     
-    private class AnnotatedArticlesIterator extends AbstractIterator<ConcatenatedGigawordDocuments.Article> {
+    private class AnnotatedArticlesIterator extends AbstractIterator<Article> {
         
         private int startNextIndex = 0;
         
         @Override
-        protected ConcatenatedGigawordDocuments.Article computeNext() {
+        protected Article computeNext() {
             
             if (startNextIndex >= articleList.size()) {
                 return endOfData();
@@ -124,7 +127,7 @@ public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Concaten
             
             else
             {
-                ConcatenatedGigawordDocuments.Article nextArticle = articleList.get(startNextIndex);
+                Article nextArticle = articleList.get(startNextIndex);
                 startNextIndex ++;
                 return nextArticle;
             }
