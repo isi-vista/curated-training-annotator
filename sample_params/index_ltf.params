@@ -2,4 +2,4 @@ indexName: ltf
 format: ltf
 lang: UK
 corporaDirectoryPath: /Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text
-threshold: 1.0
+threshold: 0.1

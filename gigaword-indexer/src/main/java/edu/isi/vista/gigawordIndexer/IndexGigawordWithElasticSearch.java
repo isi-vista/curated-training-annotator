@@ -91,7 +91,7 @@ public class IndexGigawordWithElasticSearch {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
       final String format = parameters.getOptionalString(PARAM_FORMAT).orNull();
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
-      final double threshold = parameters.getNonNegativeDouble(PARAM_THRESHOLD);
+      final double threshold = Double.parseDouble(parameters.getOptionalString(PARAM_THRESHOLD).or("0.0"));
       final Path corporaDirPath = parameters.getExistingDirectory(PARAM_CORPORA_DIRECTORY_PATH).toPath();
       PathMatcher filePattern;
       if (format != null && format.equalsIgnoreCase("LTF")) {
