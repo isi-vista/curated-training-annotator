@@ -39,6 +39,7 @@ public class LTFDocuments implements Iterable<Article>{
 
   private ZipFile zipFile;
   private Enumeration<? extends ZipEntry> ltfZipEntries;
+  private ZipEntry entry; // current entry for tracking error
 
   @Override
   public Iterator<Article> iterator() {
@@ -71,7 +72,7 @@ public class LTFDocuments implements Iterable<Article>{
 
     private int nextZipEntry() {
       if (ltfZipEntries.hasMoreElements()) {
-        ZipEntry entry = ltfZipEntries.nextElement();
+        entry = ltfZipEntries.nextElement();
         try (InputStream is = zipFile.getInputStream(entry)) {
           if (entry.getName().endsWith(".ltf.xml")) {
             LctlText lctlText =
@@ -106,9 +107,9 @@ public class LTFDocuments implements Iterable<Article>{
         article = new Article(id, doc.getOriginalText().content().utf16CodeUnits());
       } catch (Exception e) {
         // avoid crash due to checksum error
-        log.error("Exception getting document content: {}", e.getMessage());
-        index++;
-        return computeNext();
+        log.error("Exception getting document content: {}", entry.getName());
+        log.error(e.getMessage());
+        article = new Article("-1", "");
       }
       index++;
       return article;
