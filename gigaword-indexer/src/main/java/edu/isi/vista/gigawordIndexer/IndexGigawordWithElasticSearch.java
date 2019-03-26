@@ -93,7 +93,7 @@ public class IndexGigawordWithElasticSearch {
                   .forEach(gzippedConcatenatedFile -> {
                     try {
                           index(client, gzippedConcatenatedFile, indexName, corpusFormat);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                       throw new RuntimeException(e);
                     }
                   });
@@ -126,21 +126,20 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  private static void index(RestHighLevelClient client, Path file, String indexName, String corpusFormat) throws IOException {
+  private static void index(RestHighLevelClient client, Path file, String indexName, String corpusFormat) throws Exception {
     log.info("Indexing {}", file.toAbsolutePath());
 
     Iterable<Article> concatenatedGigawordDocuments = null;
     if (corpusFormat.equals("annotated_gigaword")) {
-      log.warn("Indexing an annotated version of Gigaword. Please note that this procedure does not preserve " +
-              "the offsets from the original document texts and therefore cannot be used for " +
-              "the curated training process.");
+      log.warn("Indexing an annotated version of Gigaword.");
       concatenatedGigawordDocuments = ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(file);
     }
     else if (corpusFormat.equals("gigaword")) {
       concatenatedGigawordDocuments = ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file);
     }
     else {
-      System.err.println(USAGE);
+      System.err.println("Unknown input for parameter corpusFormat. " +
+              "Possible values are \"annotated_gigaword\" and \"gigaword\".");
       System.exit(1);
     }
 
