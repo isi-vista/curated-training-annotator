@@ -106,9 +106,9 @@ public class IndexGigawordWithElasticSearch {
             .forEach(
                 gzippedConcatenatedFile -> {
                   try {
-                    int[] stats = index(client, gzippedConcatenatedFile, indexName, format, lang, threshold);
-                    total_doc = total_doc + stats[0] + stats[1];
-                    index_failed += stats[1];
+                    int[] stats = index(client, gzippedConcatenatedFile, indexName, format, lang, total_doc, index_failed, threshold);
+                    total_doc = stats[0];
+                    index_failed = stats[1];
                   } catch (IOException e) {
                     throw new RuntimeException(e);
                   }
@@ -142,7 +142,7 @@ public class IndexGigawordWithElasticSearch {
 
   /**
    *
-   * @return a list of integer where element 0 is number of document indexing succeeded, 1 is number failed
+   * @return a list of integer where element 0 is total documents so far, 1 is number failed
    * @throws IOException
    */
   private static int[] index(
@@ -151,10 +151,9 @@ public class IndexGigawordWithElasticSearch {
       String indexName,
       String format,
       String lang,
+      int total,
+      int failed,
       double threshold) throws IOException {
-
-    int success = 0;
-    int failed = 0;
 
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
     if (file.toString().toLowerCase().endsWith(".xml.gz")) {
@@ -175,7 +174,7 @@ public class IndexGigawordWithElasticSearch {
       for (Article article : articles) {
         if (article.getId().equals("-1")) { // error occurred
           failed += 1;
-          if ((double)failed/(double)(failed+success) > threshold) {
+          if ((double)failed/(double)(total) > threshold) {
             throw new RuntimeException("Failed documents exceeded threshold");
           }
         } else {
@@ -183,15 +182,15 @@ public class IndexGigawordWithElasticSearch {
               buildSourceObject(article, lang, "", new Date().toString(), "");
           bulkRequest.add(
               new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
-          success += 1;
         }
+        total += 1;
       }
       BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
       if (bulkResponse.hasFailures()) {
         throw new RuntimeException(bulkResponse.buildFailureMessage());
       }
     }
-    return new int[] {success, failed};
+    return new int[] {total, failed};
   }
 
   /**
