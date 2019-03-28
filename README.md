@@ -6,7 +6,6 @@ Tools for the curated training annotation process:
 
 This will produce Inception annotation projects for the cross-product of a set of users and the event types of an AIDA ontology.
 
-
 ## Note on JVM code
 
 If you load the JVM code for this project up in IntelliJ, be sure to enable annotation

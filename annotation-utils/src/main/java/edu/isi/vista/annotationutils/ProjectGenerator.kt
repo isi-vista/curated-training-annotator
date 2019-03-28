@@ -20,7 +20,6 @@ import java.nio.file.Paths
 import java.nio.file.FileSystems
 import java.nio.file.Files
 
-
 /*
 Generate Inception projects for import for the cross-product of a list of users and the
 events of an ontology.
