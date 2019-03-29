@@ -71,11 +71,11 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_THRESHOLD = "threshold";
 
-  private static int total_doc = 0;
+  private static final String SEGMENT_LIMIT = "segmentLimit";
 
-  private static int index_failed = 0;
+  private static int totalDoc = 0;
 
-  private static final int SEGMENT_LIMIT = 100;
+  private static int indexFailed = 0;
 
   private static final int BATCH_SIZE = 100;
 
@@ -96,6 +96,7 @@ public class IndexGigawordWithElasticSearch {
       final String format = parameters.getOptionalString(PARAM_FORMAT).orNull();
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
       final double threshold = Double.parseDouble(parameters.getOptionalString(PARAM_THRESHOLD).or("0.0"));
+      final int segmentLimit = parameters.getOptionalInteger(SEGMENT_LIMIT).or(100);
       final Path corporaDirPath = parameters.getExistingDirectory(PARAM_CORPORA_DIRECTORY_PATH).toPath();
       PathMatcher filePattern;
       if (format != null && format.equalsIgnoreCase("LTF")) {
@@ -110,16 +111,24 @@ public class IndexGigawordWithElasticSearch {
             .forEach(
                 gzippedConcatenatedFile -> {
                   try {
-                    int[] stats = index(client, gzippedConcatenatedFile, indexName, format, lang, total_doc, index_failed, threshold);
-                    total_doc = stats[0];
-                    index_failed = stats[1];
+                    int[] stats = index(client,
+                        gzippedConcatenatedFile,
+                        indexName,
+                        format,
+                        lang,
+                        totalDoc,
+                        indexFailed,
+                        threshold,
+                        segmentLimit);
+                    totalDoc = stats[0];
+                    indexFailed = stats[1];
                   } catch (IOException e) {
                     throw new RuntimeException(e);
                   }
                 });
       }
 
-      log.info("{} documents indexed, {} failed", total_doc-index_failed, index_failed);
+      log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
 
     } catch (Exception e) {
       log.error("Caught exception: {}", e);
@@ -157,7 +166,8 @@ public class IndexGigawordWithElasticSearch {
       String lang,
       int total,
       int failed,
-      double threshold) throws IOException {
+      double threshold,
+      int segLimit) throws IOException {
 
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
     if (file.toString().toLowerCase().endsWith(".xml.gz")) {
@@ -181,7 +191,7 @@ public class IndexGigawordWithElasticSearch {
           if ((double)failed/(double)(total) > threshold) {
             throw new RuntimeException("Failed documents exceeded threshold");
           }
-        } else if (article.getSegments() > SEGMENT_LIMIT) {
+        } else if (article.getSegments() > segLimit) {
           failed += 1;
           log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
               SEGMENT_LIMIT, article.getSegments(), article.getId());
