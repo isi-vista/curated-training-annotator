@@ -2,6 +2,10 @@
 
 Tools for the curated training annotation process:
 
+# ProjectGenerator
+
+This will produce Inception annotation projects for the cross-product of a set of users and the event types of an AIDA ontology.
+
 
 ## Note on JVM code
 
