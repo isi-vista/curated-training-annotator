@@ -36,10 +36,10 @@ public class IndexGigawordWithElasticSearch {
           "\tparam file consists of :-separated key-value pairs\n" +
           "\tThe required parameters are:\n" +
           "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
-          "\tcorporaDirectoryPath: the path to a directory where corpora (i.e. LDC2011T07 English Gigaword 5th edition)\n" +
+          "\tcorpusDirectoryPath: the path to a directory where corpus (i.e. LDC2011T07 English Gigaword 5th edition)\n" +
           "\t\thas been extracted. \n" +
           "\t\tIf indexing Gigaword, make sure the version is the plain Gigaword (LDC2011T07) file and not the other versions.\n" +
-          "\tformat: LTF or omit if plain text" +
+          "\tformat: LTF or gigaword" +
           "\tthreshold: a number between 0 and 1 indicating the percentage of failed indexing doc before terminating program\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
@@ -53,7 +53,7 @@ public class IndexGigawordWithElasticSearch {
 
   private static final int DEFAULT_PORT_SEC = 9201;
 
-  private static final String PARAM_CORPORA_DIRECTORY_PATH = "corporaDirectoryPath";
+  private static final String PARAM_CORPUS_DIRECTORY_PATH = "corpusDirectoryPath";
 
   private static final String PARAM_FORMAT = "format";
 
@@ -69,9 +69,9 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_PORT_SECONDARY = "secondaryPort";
 
-  private static final String PARAM_THRESHOLD = "threshold";
+  private static final String PARAM_FRACITOIN_DOCS_ALLOWED_TO_FAIL = "fractionDocsAllowedToFail";
 
-  private static final String SEGMENT_LIMIT = "segmentLimit";
+  private static final String SENTENCE_LIMIT = "sentenceLimit";
 
   private static int totalDoc = 0;
 
@@ -93,35 +93,33 @@ public class IndexGigawordWithElasticSearch {
 
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
-      final String format = parameters.getOptionalString(PARAM_FORMAT).orNull();
+      final String format = parameters.getString(PARAM_FORMAT);
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
-      final double threshold = Double.parseDouble(parameters.getOptionalString(PARAM_THRESHOLD).or("0.0"));
-      final int segmentLimit = parameters.getOptionalInteger(SEGMENT_LIMIT).or(100);
-      final Path corporaDirPath = parameters.getExistingDirectory(PARAM_CORPORA_DIRECTORY_PATH).toPath();
+      final double fractionDocAllowToFail =
+          Double.parseDouble(parameters.getOptionalString(PARAM_FRACITOIN_DOCS_ALLOWED_TO_FAIL)
+              .or("0.0"));
+      final int sentenceLimit = parameters.getOptionalInteger(SENTENCE_LIMIT).or(100);
+      final Path corpusDirPath = parameters.getExistingDirectory(PARAM_CORPUS_DIRECTORY_PATH).toPath();
       PathMatcher filePattern;
-      if (format != null && format.equalsIgnoreCase("LTF")) {
+      if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
       } else {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
 
-      try (Stream<Path> gigawordFiles = Files.walk(corporaDirPath)) {
-        gigawordFiles
+      try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+        corpusFiles
             .filter(filePattern::matches)
             .forEach(
                 gzippedConcatenatedFile -> {
                   try {
-                    int[] stats = index(client,
+                    index(client,
                         gzippedConcatenatedFile,
                         indexName,
                         format,
                         lang,
-                        totalDoc,
-                        indexFailed,
-                        threshold,
-                        segmentLimit);
-                    totalDoc = stats[0];
-                    indexFailed = stats[1];
+                        fractionDocAllowToFail,
+                        sentenceLimit);
                   } catch (IOException e) {
                     throw new RuntimeException(e);
                   }
@@ -153,32 +151,27 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-  /**
-   *
-   * @return a list of integer where element 0 is total documents so far, 1 is number failed
-   * @throws IOException
-   */
-  private static int[] index(
+
+  private static void index(
       RestHighLevelClient client,
       Path file,
       String indexName,
       String format,
       String lang,
-      int total,
-      int failed,
-      double threshold,
-      int segLimit) throws IOException {
+      double fractionDocAllowToFail,
+      int sentenceLimit) throws IOException {
 
     // If file ends with .xml.gz, this may be the wrong version of Gigaword.
-    if (file.toString().toLowerCase().endsWith(".xml.gz")) {
+    if ((format.equalsIgnoreCase("gigaword"))
+        && file.toString().toLowerCase().endsWith(".xml.gz")) {
       log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
           + "Make sure you are using the plain version LDC2011T07.");
     }
 
     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
     // making huge requests of unbounded size
-    Iterable<List<Article>> iterator ;
-    if (format != null && format.equalsIgnoreCase("ltf")) {
+    Iterable<List<Article>> iterator;
+    if (format.equalsIgnoreCase("ltf")) {
       iterator = partition(LTFDocuments.fromLTFZippedFile(file), BATCH_SIZE);
     } else {
       iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), BATCH_SIZE);
@@ -187,21 +180,21 @@ public class IndexGigawordWithElasticSearch {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
         if (article.getId().equals("-1")) { // error occurred
-          failed += 1;
-          if ((double)failed/(double)(total) > threshold) {
+          indexFailed += 1;
+          if ((double)indexFailed/(double)(totalDoc) > fractionDocAllowToFail) {
             throw new RuntimeException("Failed documents exceeded threshold");
           }
-        } else if (article.getSegments() > segLimit) {
-          failed += 1;
+        } else if (article.getSegments() > sentenceLimit) {
+          indexFailed += 1;
           log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
-              SEGMENT_LIMIT, article.getSegments(), article.getId());
+             sentenceLimit , article.getSegments(), article.getId());
         } else {
           XContentBuilder sourceBuilder =
               buildSourceObject(article, lang, "", new Date().toString(), "");
           bulkRequest.add(
               new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
         }
-        total += 1;
+        totalDoc += 1;
       }
       if (bulkRequest.numberOfActions() > 0) {
         BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
@@ -210,7 +203,6 @@ public class IndexGigawordWithElasticSearch {
         }
       }
     }
-    return new int[] {total, failed};
   }
 
   /**

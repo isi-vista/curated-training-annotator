@@ -1,10 +1,10 @@
 indexName: ru
 format: ltf
 lang: ru
-corporaDirectoryPath: /lfs1/corpora/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1/data/monolingual_text/zipped
-threshold: 1.0
+corpusDirectoryPath: /lfs1/corpora/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1/data/monolingual_text/zipped
+fractionDocsAllowedToFail: 1.0
 primaryHostName: 128.9.35.34
 secondaryHostName: 128.9.35.34
 primaryPort: 9211
 secondaryPort: 9211
-segmentLimit: 100
+sentenceLimit: 100

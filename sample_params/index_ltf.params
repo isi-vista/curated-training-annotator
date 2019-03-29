@@ -1,6 +1,6 @@
 indexName: ltf
 format: ltf
 lang: UK
-corporaDirectoryPath: /Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text
-threshold: 0.1
-segmentLimit: 100
+corpusDirectoryPath: /Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text
+fractionDocsAllowedToFail: 0.1
+sentenceLimit: 100
