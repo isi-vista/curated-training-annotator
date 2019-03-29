@@ -75,6 +75,10 @@ public class IndexGigawordWithElasticSearch {
 
   private static int index_failed = 0;
 
+  private static final int SEGMENT_LIMIT = 100;
+
+  private static final int BATCH_SIZE = 100;
+
   public static void main(String[] argv) throws IOException {
 
     // get parameter file
@@ -165,9 +169,9 @@ public class IndexGigawordWithElasticSearch {
     // making huge requests of unbounded size
     Iterable<List<Article>> iterator ;
     if (format != null && format.equalsIgnoreCase("ltf")) {
-      iterator = partition(LTFDocuments.fromLTFZippedFile(file), 100);
+      iterator = partition(LTFDocuments.fromLTFZippedFile(file), BATCH_SIZE);
     } else {
-      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), 100);
+      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), BATCH_SIZE);
     }
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
@@ -177,6 +181,10 @@ public class IndexGigawordWithElasticSearch {
           if ((double)failed/(double)(total) > threshold) {
             throw new RuntimeException("Failed documents exceeded threshold");
           }
+        } else if (article.getSegments() > SEGMENT_LIMIT) {
+          failed += 1;
+          log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
+              SEGMENT_LIMIT, article.getSegments(), article.getId());
         } else {
           XContentBuilder sourceBuilder =
               buildSourceObject(article, lang, "", new Date().toString(), "");
@@ -185,9 +193,11 @@ public class IndexGigawordWithElasticSearch {
         }
         total += 1;
       }
-      BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
-      if (bulkResponse.hasFailures()) {
-        throw new RuntimeException(bulkResponse.buildFailureMessage());
+      if (bulkRequest.numberOfActions() > 0) {
+        BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+        if (bulkResponse.hasFailures()) {
+          throw new RuntimeException(bulkResponse.buildFailureMessage());
+        }
       }
     }
     return new int[] {total, failed};

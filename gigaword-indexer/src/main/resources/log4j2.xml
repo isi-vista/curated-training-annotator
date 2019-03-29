@@ -2,6 +2,14 @@
 <Configuration status="WARN">
 
   <Appenders>
+    <RollingFile name="FileLogger" fileName="logs/indexer.log" filePattern="logs/indexer-%d{yyyy-MM-dd}.log">
+      <PatternLayout>
+        <pattern>[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n</pattern>
+      </PatternLayout>
+      <Policies>
+        <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+      </Policies>
+    </RollingFile>
     <Console name="ConsoleAppender" target="SYSTEM_OUT">
       <!--SHORT PATTERN -->
       <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %level{length=5} [$${ctx:username:-SYSTEM}] %logger{1} - %msg%n" />
@@ -11,6 +19,7 @@
   <Loggers>
     <Root level="info">
       <AppenderRef ref="ConsoleAppender" />
+      <AppenderRef ref="FileLogger" />
     </Root>
   </Loggers>
 </Configuration>

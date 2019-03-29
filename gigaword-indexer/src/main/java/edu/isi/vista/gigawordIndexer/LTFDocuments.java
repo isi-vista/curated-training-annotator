@@ -14,7 +14,6 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +101,7 @@ public class LTFDocuments implements Iterable<Article>{
 
       Article article;
       try {
-        article = new Article(doc.getId(), doc.getOriginalText().content().utf16CodeUnits());
+          article = new Article(doc.getId(), doc.getOriginalText().content().utf16CodeUnits(), doc.getSegments().size());
       } catch (Exception e) {
         // avoid crash due to checksum error
         log.error("Exception getting document content: {}", entry.getName());
