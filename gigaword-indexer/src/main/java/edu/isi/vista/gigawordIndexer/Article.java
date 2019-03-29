@@ -3,8 +3,24 @@ package edu.isi.vista.gigawordIndexer;
 public class Article {
 
   private String id;
+
   private String text;
+
   private int segments = 0; // LTF only
+
+  private boolean failed = false;
+
+  public static Article failedArticle(String id, String text) {
+    Article a = new Article(id, text);
+    a.failed = true;
+    return a;
+  }
+
+  public static Article failedArticle(String id, String text, int segments) {
+    Article a = new Article(id, text, segments);
+    a.failed = true;
+    return a;
+  }
 
   public Article(String id, String text) {
     this.id = id;
@@ -27,6 +43,10 @@ public class Article {
 
   public int getSegments() {
     return segments;
+  }
+
+  public boolean failed() {
+    return failed;
   }
 
   @Override

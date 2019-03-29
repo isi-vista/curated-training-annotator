@@ -179,7 +179,7 @@ public class IndexGigawordWithElasticSearch {
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
-        if (article.getId().equals("-1")) { // error occurred
+        if (article.failed()) { // error occurred
           indexFailed += 1;
           if ((double)indexFailed/(double)(totalDoc) > fractionDocAllowToFail) {
             throw new RuntimeException("Failed documents exceeded threshold");

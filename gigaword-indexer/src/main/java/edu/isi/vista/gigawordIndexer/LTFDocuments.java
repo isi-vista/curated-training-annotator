@@ -106,7 +106,7 @@ public class LTFDocuments implements Iterable<Article>{
         // avoid crash due to checksum error
         log.error("Exception getting document content: {}", entry.getName());
         log.error(e.getMessage());
-        article = new Article("-1", "");
+        article = Article.failedArticle(doc.getId(), doc.getOriginalText().content().utf16CodeUnits());
       }
       index++;
       return article;
