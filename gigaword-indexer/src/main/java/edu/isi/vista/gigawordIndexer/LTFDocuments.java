@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableList;
 import edu.isi.nlp.corpora.LctlText;
 import edu.isi.nlp.corpora.LtfDocument;
 import edu.isi.nlp.corpora.LtfReader;
-import java.io.File;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -17,28 +17,20 @@ import java.util.zip.ZipFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LTFDocuments implements Iterable<Article>{
+public class LTFDocuments implements Iterable<Article>, Closeable {
 
   private static final Logger log = LoggerFactory.getLogger(LTFDocuments.class);
 
-  public static void main(String[] args) {
-    // this is for testing this class only
-    try {
-      File file = new File("/Users/jenniferchen/Downloads/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0/set0/data/monolingual_text/set0.ltf.zip");
-      LTFDocuments docs = LTFDocuments.fromLTFZippedFile(file.toPath());
-      Iterator<Article> iterator = docs.iterator();
-      while (iterator.hasNext()) {
-        Article a = iterator.next();
-        log.info(a.toString());
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
   private ZipFile zipFile;
+
   private Enumeration<? extends ZipEntry> ltfZipEntries;
+
   private ZipEntry entry; // current entry for tracking error
+
+  @Override
+  public void close() throws IOException {
+    zipFile.close();
+  }
 
   @Override
   public Iterator<Article> iterator() {
@@ -55,7 +47,9 @@ public class LTFDocuments implements Iterable<Article>{
 
     ZipFile zipFile = new ZipFile(p.toFile(), StandardCharsets.UTF_8);
     return new LTFDocuments(zipFile);
+
   }
+
 
   private class ArticlesIterator extends AbstractIterator<Article> {
     private LtfReader reader;
@@ -106,7 +100,7 @@ public class LTFDocuments implements Iterable<Article>{
         // avoid crash due to checksum error
         log.error("Exception getting document content: {}", entry.getName());
         log.error(e.getMessage());
-        article = Article.failedArticle(doc.getId(), doc.getOriginalText().content().utf16CodeUnits());
+        article = Article.failedArticle(doc.getId(), "");
       }
       index++;
       return article;

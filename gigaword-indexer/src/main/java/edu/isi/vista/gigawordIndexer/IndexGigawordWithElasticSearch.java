@@ -113,13 +113,25 @@ public class IndexGigawordWithElasticSearch {
             .forEach(
                 gzippedConcatenatedFile -> {
                   try {
-                    index(client,
-                        gzippedConcatenatedFile,
-                        indexName,
-                        format,
-                        lang,
-                        fractionDocAllowToFail,
-                        sentenceLimit);
+                    // If file ends with .xml.gz, this may be the wrong version of Gigaword.
+                    if ((format.equalsIgnoreCase("gigaword"))
+                        && gzippedConcatenatedFile.toString().toLowerCase().endsWith(".xml.gz")) {
+                      log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
+                          + "Make sure you are using the plain version LDC2011T07.");
+                    }
+
+                    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
+                    // making huge requests of unbounded size
+                    Iterable<List<Article>> iterator;
+                    if (format.equalsIgnoreCase("ltf")) {
+                      try (LTFDocuments ltfDocuments = LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile)) {
+                        iterator = partition(ltfDocuments, BATCH_SIZE);
+                        index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                      }
+                    } else {
+                      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
+                      index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                    }
                   } catch (IOException e) {
                     throw new RuntimeException(e);
                   }
@@ -154,28 +166,12 @@ public class IndexGigawordWithElasticSearch {
 
   private static void index(
       RestHighLevelClient client,
-      Path file,
+      Iterable<List<Article>> iterator,
       String indexName,
-      String format,
       String lang,
       double fractionDocAllowToFail,
       int sentenceLimit) throws IOException {
 
-    // If file ends with .xml.gz, this may be the wrong version of Gigaword.
-    if ((format.equalsIgnoreCase("gigaword"))
-        && file.toString().toLowerCase().endsWith(".xml.gz")) {
-      log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
-          + "Make sure you are using the plain version LDC2011T07.");
-    }
-
-    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
-    // making huge requests of unbounded size
-    Iterable<List<Article>> iterator;
-    if (format.equalsIgnoreCase("ltf")) {
-      iterator = partition(LTFDocuments.fromLTFZippedFile(file), BATCH_SIZE);
-    } else {
-      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(file), BATCH_SIZE);
-    }
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
@@ -187,7 +183,7 @@ public class IndexGigawordWithElasticSearch {
         } else if (article.getSegments() > sentenceLimit) {
           indexFailed += 1;
           log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
-             sentenceLimit , article.getSegments(), article.getId());
+              sentenceLimit , article.getSegments(), article.getId());
         } else {
           XContentBuilder sourceBuilder =
               buildSourceObject(article, lang, "", new Date().toString(), "");
