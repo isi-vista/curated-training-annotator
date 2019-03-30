@@ -59,13 +59,13 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
     private int index;
 
     private ArticlesIterator() {
-      // get first zip file entry
-      nextZipEntry();
+      // get first zip entry of Ltf from zip file
+      entry = nextLtfEntry();
     }
 
-    private int nextZipEntry() {
+    private ZipEntry nextLtfEntry() {
       if (ltfZipEntries.hasMoreElements()) {
-        entry = ltfZipEntries.nextElement();
+        ZipEntry entry = ltfZipEntries.nextElement();
         try (InputStream is = zipFile.getInputStream(entry)) {
           byte[] bytes = IOUtils.toByteArray(is);
           if (entry.getName().endsWith(".ltf.xml")) {
@@ -73,22 +73,22 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
                 reader.read(ByteSource.wrap(bytes).asCharSource(StandardCharsets.UTF_8));
             docs = lctlText.getDocuments();
             index = 0;
-            return 1;
+            return entry;
           } else {
-            return nextZipEntry();
+            return nextLtfEntry();
           }
         } catch (IOException e) {
           log.error("Caught exception: {}", e);
           System.exit(1);
         }
       }
-      return -1; // no more entries
+      return null; // no more entries
     }
 
     @Override
     protected Article computeNext() {
       if (index >= docs.size()) {
-        if (nextZipEntry() == -1) {
+        if (nextLtfEntry() == null) {
           return endOfData();
         }
       }
