@@ -2,6 +2,7 @@ package edu.isi.vista.gigawordIndexer;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteSource;
 import edu.isi.nlp.corpora.LctlText;
 import edu.isi.nlp.corpora.LtfDocument;
 import edu.isi.nlp.corpora.LtfReader;
@@ -14,6 +15,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,13 +54,11 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
 
   private class ArticlesIterator extends AbstractIterator<Article> {
-    private LtfReader reader;
+    private LtfReader reader = new LtfReader();
     private ImmutableList<LtfDocument> docs;
     private int index;
 
     private ArticlesIterator() {
-      reader = new LtfReader();
-
       // get first zip file entry
       nextZipEntry();
     }
@@ -67,9 +67,10 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
       if (ltfZipEntries.hasMoreElements()) {
         entry = ltfZipEntries.nextElement();
         try (InputStream is = zipFile.getInputStream(entry)) {
+          byte[] bytes = IOUtils.toByteArray(is);
           if (entry.getName().endsWith(".ltf.xml")) {
             LctlText lctlText =
-                reader.read(new ZipEntryByteSource(is).asCharSource(StandardCharsets.UTF_8));
+                reader.read(ByteSource.wrap(bytes).asCharSource(StandardCharsets.UTF_8));
             docs = lctlText.getDocuments();
             index = 0;
             return 1;
@@ -78,6 +79,7 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
           }
         } catch (IOException e) {
           log.error("Caught exception: {}", e);
+          System.exit(1);
         }
       }
       return -1; // no more entries
