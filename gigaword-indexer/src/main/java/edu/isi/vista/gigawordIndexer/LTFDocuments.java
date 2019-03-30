@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.IOUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +28,13 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
   private Enumeration<? extends ZipEntry> ltfZipEntries;
 
-  private ZipEntry entry; // current entry for tracking error
 
   @Override
   public void close() throws IOException {
     zipFile.close();
   }
 
+  @NotNull
   @Override
   public Iterator<Article> iterator() {
     return new ArticlesIterator();
@@ -45,7 +46,7 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
   }
 
-  public static LTFDocuments fromLTFZippedFile(Path p) throws IOException {
+  static LTFDocuments fromLTFZippedFile(Path p) throws IOException {
 
     ZipFile zipFile = new ZipFile(p.toFile(), StandardCharsets.UTF_8);
     return new LTFDocuments(zipFile);
@@ -55,56 +56,72 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
   private class ArticlesIterator extends AbstractIterator<Article> {
     private LtfReader reader = new LtfReader();
-    private ImmutableList<LtfDocument> docs;
-    private int index;
+    private ZipEntry currentLtfEntry;
+    private ImmutableList<LtfDocument> entryDocs;
+    private int docIndex;
 
     private ArticlesIterator() {
       // get first zip entry of Ltf from zip file
-      entry = nextLtfEntry();
+      currentLtfEntry = nextLtfEntry();
+      try {
+        entryDocs = getDocsForLtfEntry(currentLtfEntry);
+        docIndex = 0;
+      } catch (IOException e) {
+        log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
+        log.error(e.getMessage());
+        System.exit(1);
+      }
     }
 
     private ZipEntry nextLtfEntry() {
-      if (ltfZipEntries.hasMoreElements()) {
+      while (ltfZipEntries.hasMoreElements()) {
         ZipEntry entry = ltfZipEntries.nextElement();
-        try (InputStream is = zipFile.getInputStream(entry)) {
-          byte[] bytes = IOUtils.toByteArray(is);
-          if (entry.getName().endsWith(".ltf.xml")) {
-            LctlText lctlText =
-                reader.read(ByteSource.wrap(bytes).asCharSource(StandardCharsets.UTF_8));
-            docs = lctlText.getDocuments();
-            index = 0;
-            return entry;
-          } else {
-            return nextLtfEntry();
-          }
-        } catch (IOException e) {
-          log.error("Caught exception: {}", e);
-          System.exit(1);
+        if (entry.getName().endsWith(".ltf.xml")) {
+          return entry;
         }
       }
       return null; // no more entries
     }
 
+    private ImmutableList<LtfDocument> getDocsForLtfEntry(ZipEntry entry) throws IOException {
+      try (InputStream is = zipFile.getInputStream(entry)) {
+        byte[] bytes = IOUtils.toByteArray(is);
+        LctlText lctlText =
+            reader.read(ByteSource.wrap(bytes).asCharSource(StandardCharsets.UTF_8));
+        return lctlText.getDocuments();
+      }
+    }
+
     @Override
     protected Article computeNext() {
-      if (index >= docs.size()) {
-        if (nextLtfEntry() == null) {
+      if (docIndex >= entryDocs.size()) { // done with this entry
+        currentLtfEntry = nextLtfEntry();
+        if (currentLtfEntry == null) {
           return endOfData();
+        } else {
+          try {
+            entryDocs = getDocsForLtfEntry(currentLtfEntry);
+            docIndex = 0;
+          } catch (IOException e) {
+            log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
+            log.error(e.getMessage());
+            System.exit(1);
+          }
         }
       }
 
-      LtfDocument doc = docs.get(index);
+      LtfDocument doc = entryDocs.get(docIndex);
 
       Article article;
       try {
           article = new Article(doc.getId(), doc.getOriginalText().content().utf16CodeUnits(), doc.getSegments().size());
       } catch (Exception e) {
         // avoid crash due to checksum error
-        log.error("Exception getting document content: {}", entry.getName());
+        log.error("Exception getting document content: {}", currentLtfEntry.getName());
         log.error(e.getMessage());
         article = Article.failedArticle(doc.getId(), "");
       }
-      index++;
+      docIndex++;
       return article;
 
     }

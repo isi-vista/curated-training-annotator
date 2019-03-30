@@ -69,7 +69,7 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String PARAM_PORT_SECONDARY = "secondaryPort";
 
-  private static final String PARAM_FRACITOIN_DOCS_ALLOWED_TO_FAIL = "fractionDocsAllowedToFail";
+  private static final String PARAM_FRACTIOIN_DOCS_ALLOWED_TO_FAIL = "fractionDocsAllowedToFail";
 
   private static final String SENTENCE_LIMIT = "sentenceLimit";
 
@@ -96,7 +96,7 @@ public class IndexGigawordWithElasticSearch {
       final String format = parameters.getString(PARAM_FORMAT);
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
       final double fractionDocAllowToFail =
-          Double.parseDouble(parameters.getOptionalString(PARAM_FRACITOIN_DOCS_ALLOWED_TO_FAIL)
+          Double.parseDouble(parameters.getOptionalString(PARAM_FRACTIOIN_DOCS_ALLOWED_TO_FAIL)
               .or("0.0"));
       final int sentenceLimit = parameters.getOptionalInteger(SENTENCE_LIMIT).or(100);
       final Path corpusDirPath = parameters.getExistingDirectory(PARAM_CORPUS_DIRECTORY_PATH).toPath();
