@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.IOUtils;
@@ -62,25 +63,32 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
     private ArticlesIterator() {
       // get first zip entry of Ltf from zip file
-      currentLtfEntry = nextLtfEntry();
-      try {
-        entryDocs = getDocsForLtfEntry(currentLtfEntry);
-        docIndex = 0;
-      } catch (IOException e) {
-        log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
-        log.error(e.getMessage());
-        System.exit(1);
+      Optional<ZipEntry> entry = nextLtfEntry();
+      if (entry.isPresent()) {
+        currentLtfEntry = entry.get();
+        try {
+          entryDocs = getDocsForLtfEntry(currentLtfEntry);
+          docIndex = 0;
+        } catch (IOException e) {
+          log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
+          log.error(e.getMessage());
+          throw new RuntimeException(e);
+        }
+      } else {
+        throw new RuntimeException("Zip file " + zipFile.getName() + " has no entries");
       }
     }
 
-    private ZipEntry nextLtfEntry() {
+    private Optional<ZipEntry> nextLtfEntry() {
+      Optional<ZipEntry> result = Optional.empty();
       while (ltfZipEntries.hasMoreElements()) {
         ZipEntry entry = ltfZipEntries.nextElement();
         if (entry.getName().endsWith(".ltf.xml")) {
-          return entry;
+          result = Optional.of(entry);
+          break;
         }
       }
-      return null; // no more entries
+      return result;
     }
 
     private ImmutableList<LtfDocument> getDocsForLtfEntry(ZipEntry entry) throws IOException {
@@ -95,17 +103,17 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
     @Override
     protected Article computeNext() {
       if (docIndex >= entryDocs.size()) { // done with this entry
-        currentLtfEntry = nextLtfEntry();
-        if (currentLtfEntry == null) {
+        if (!nextLtfEntry().isPresent()) {
           return endOfData();
         } else {
           try {
+            currentLtfEntry = nextLtfEntry().get();
             entryDocs = getDocsForLtfEntry(currentLtfEntry);
             docIndex = 0;
           } catch (IOException e) {
             log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
             log.error(e.getMessage());
-            System.exit(1);
+            throw new RuntimeException(e);
           }
         }
       }
@@ -115,7 +123,7 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
       Article article;
       try {
           article = new Article(doc.getId(), doc.getOriginalText().content().utf16CodeUnits(), doc.getSegments().size());
-      } catch (Exception e) {
+      } catch (IOException e) {
         // avoid crash due to checksum error
         log.error("Exception getting document content: {}", currentLtfEntry.getName());
         log.error(e.getMessage());

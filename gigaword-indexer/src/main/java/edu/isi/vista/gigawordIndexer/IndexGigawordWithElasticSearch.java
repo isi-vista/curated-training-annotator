@@ -128,9 +128,11 @@ public class IndexGigawordWithElasticSearch {
                         iterator = partition(ltfDocuments, BATCH_SIZE);
                         index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
                       }
-                    } else {
+                    } else if (format.equalsIgnoreCase("gigaword")){
                       iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
                       index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                    } else {
+                      throw new RuntimeException("Unknown format: " + format);
                     }
                   } catch (IOException e) {
                     throw new RuntimeException(e);
