@@ -123,7 +123,7 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
       Article article;
       try {
           article = new Article(doc.getId(), doc.getOriginalText().content().utf16CodeUnits(), doc.getSegments().size());
-      } catch (IOException e) {
+      } catch (RuntimeException e) {
         // avoid crash due to checksum error
         log.error("Exception getting document content: {}", currentLtfEntry.getName());
         log.error(e.getMessage());
