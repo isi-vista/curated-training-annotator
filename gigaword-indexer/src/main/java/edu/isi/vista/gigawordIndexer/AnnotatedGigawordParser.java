@@ -57,12 +57,12 @@ public class AnnotatedGigawordParser extends DefaultHandler
         }
         else if (inDocument && qName.equals("sentences")) {
             inSentences = false;
-            articleList.add(new Article(currentDocId, docText.toString().trim()));
+            articleList.add(new Article(currentDocId, docText.toString()));
             docText = new StringBuilder();
         }
         else if (inSentences && qName.equals("token")) {
             inToken = false;
-            while (docText.toString().length() < currentOffsetBegin) {
+            while (docText.length() < currentOffsetBegin) {
                 docText.append(" ");
             }
             docText.append(currentWord);
