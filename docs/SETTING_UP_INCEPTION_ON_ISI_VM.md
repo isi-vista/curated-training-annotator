@@ -85,6 +85,8 @@ backup.keep.time=2592000
 backup.interval=300
 
 backup.keep.number=10
+
+external-search.enabled=true
 ```
 
 ```
@@ -111,7 +113,7 @@ sudo yum install git
 git clone https://github.com/inception-project/inception.git
 cd inception
 mvn install -DskipTests
-cp inception-app-webapp/target/inception-app-standalone-0.8.0-SNAPSHOT.jar /srv/inception/inception.jar
+cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
 sudo chown www-data:www-data /srv/inception/inception.jar
 ```
 
@@ -132,7 +134,24 @@ sudo chown root:root /srv/inception/inception.conf
 sudo ln -s /srv/inception/inception.jar /etc/init.d/inception
 sudo systemctl enable inception
 ```
+
+
+# How to sync Inception with the main repository
+
+You will need to use `sudo` for most or all of these commands. 
+From the Inception working copy's `master` branch:
+```
+git pull --rebase
+(if you need to use another branch, check it out)
+mvn install -DskipTest
+cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
+systemctl restart inception
 ```
 
+We skip the tests because they are time consuming and we assume Inception's CI has already run them.
 
+# How to inspect the Inception logs for errors
 
+```
+sudo less /var/log/inception.log
+```

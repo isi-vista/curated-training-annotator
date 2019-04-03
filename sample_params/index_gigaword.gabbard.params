@@ -1,3 +1,4 @@
 indexName: gigaword
-gigawordDirectoryPath: /Users/gabbard/corpora/gigaword_eng_5
+corpusDirectoryPath: /Users/gabbard/corpora/gigaword_eng_5
+format: gigaword
 corpusFormat: gigaword
