@@ -53,8 +53,6 @@ public class IndexGigawordWithElasticSearch {
   private static final int DEFAULT_PORT_PRI = 9200;
 
   private static final int DEFAULT_PORT_SEC = 9201;
-  
-  private static final String PARAM_CORPUS_FORMAT = "corpusFormat";
 
   private static final String PARAM_CORPUS_DIRECTORY_PATH = "corpusDirectoryPath";
 
@@ -96,7 +94,6 @@ public class IndexGigawordWithElasticSearch {
 
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
-      final String corpusFormat = parameters.getString(PARAM_CORPUS_FORMAT);
       final String format = parameters.getString(PARAM_FORMAT);
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
       final double fractionDocAllowToFail =
@@ -123,27 +120,21 @@ public class IndexGigawordWithElasticSearch {
                     if (format.equalsIgnoreCase("ltf")) {
                       try (LTFDocuments ltfDocuments = LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile)) {
                         iterator = partition(ltfDocuments, BATCH_SIZE);
-                        index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
                       }
-                    } else if (format.equalsIgnoreCase("gigaword")){
-                      if (corpusFormat.equals("annotated_gigaword")) {
-                        log.warn("Indexing an annotated version of Gigaword.");
-                        iterator = partition(ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                      }
-                      else if (corpusFormat.equals("gigaword")) {
-                        iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                      }
-                      else {
-                        iterator = null;
-                        System.err.println("Unknown input for parameter corpusFormat. " +
-                                "Possible values are \"annotated_gigaword\" and \"gigaword\".");
-                        System.exit(1);
-                      }
-                      index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
+                      log.warn("Indexing an annotated version of Gigaword.");
+                      iterator = partition(ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
+                    } else if (format.equalsIgnoreCase("gigaword")) {
+                      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
                     } else {
-                      throw new RuntimeException("Unknown format: " + format);
+                      iterator = null;
+                      System.err.println("Unknown input for parameter format. " +
+                              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
+                      System.exit(1);
                     }
-                  } catch (Exception e) {
+                    index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                  }
+                  catch (Exception e) {
                     throw new RuntimeException(e);
                   }
                 });
