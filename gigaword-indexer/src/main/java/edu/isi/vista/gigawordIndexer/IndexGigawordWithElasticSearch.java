@@ -38,8 +38,7 @@ public class IndexGigawordWithElasticSearch {
           "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
           "\tcorpusDirectoryPath: the path to a directory where corpus (i.e. LDC2011T07 English Gigaword 5th edition)\n" +
           "\t\thas been extracted. \n" +
-          "\t\tIf indexing Gigaword, make sure the version is the plain Gigaword (LDC2011T07) file and not the other versions.\n" +
-          "\tformat: LTF or gigaword" +
+          "\tformat: LTF, annotated_gigaword or gigaword" +
           "\tthreshold: a number between 0 and 1 indicating the percentage of failed indexing doc before terminating program\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
@@ -113,28 +112,27 @@ public class IndexGigawordWithElasticSearch {
             .forEach(
                 gzippedConcatenatedFile -> {
                   try {
-                    // If file ends with .xml.gz, this may be the wrong version of Gigaword.
-                    if ((format.equalsIgnoreCase("gigaword"))
-                        && gzippedConcatenatedFile.toString().toLowerCase().endsWith(".xml.gz")) {
-                      log.warn("Indexing file ending with .xml.gz. This may indicate incorrect Gigaword version. "
-                          + "Make sure you are using the plain version LDC2011T07.");
-                    }
-
                     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
                     // making huge requests of unbounded size
                     Iterable<List<Article>> iterator;
                     if (format.equalsIgnoreCase("ltf")) {
                       try (LTFDocuments ltfDocuments = LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile)) {
                         iterator = partition(ltfDocuments, BATCH_SIZE);
-                        index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
                       }
-                    } else if (format.equalsIgnoreCase("gigaword")){
+                    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
+                      log.warn("Indexing an annotated version of Gigaword.");
+                      iterator = partition(ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
+                    } else if (format.equalsIgnoreCase("gigaword")) {
                       iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                      index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
                     } else {
-                      throw new RuntimeException("Unknown format: " + format);
+                      iterator = null;
+                      System.err.println("Unknown input for parameter format. " +
+                              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
+                      System.exit(1);
                     }
-                  } catch (IOException e) {
+                    index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                  }
+                  catch (Exception e) {
                     throw new RuntimeException(e);
                   }
                 });

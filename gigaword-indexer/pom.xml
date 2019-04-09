@@ -73,6 +73,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>de.tudarmstadt.ukp.dkpro.core</groupId>
+			<artifactId>de.tudarmstadt.ukp.dkpro.core.io.penntree-asl</artifactId>
+			<version>1.10.0</version>
+		</dependency>
+
 
 		<dependency>
 			<groupId>org.immutables</groupId>
