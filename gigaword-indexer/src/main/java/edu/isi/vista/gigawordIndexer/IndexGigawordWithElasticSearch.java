@@ -38,9 +38,7 @@ public class IndexGigawordWithElasticSearch {
           "\tindexName: the name of the index in a running Elastic Search server to add the documents to\n" +
           "\tcorpusDirectoryPath: the path to a directory where corpus (i.e. LDC2011T07 English Gigaword 5th edition)\n" +
           "\t\thas been extracted. \n" +
-          "\tformat: LTF or gigaword" +
-          "\tcorpusFormat: flag whether the version if Gigaword is plain (\"gigaword\") or " +
-          "annotated (\"annotated_gigaword\")\n" +
+          "\tformat: LTF, annotated_gigaword or gigaword" +
           "\tthreshold: a number between 0 and 1 indicating the percentage of failed indexing doc before terminating program\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
