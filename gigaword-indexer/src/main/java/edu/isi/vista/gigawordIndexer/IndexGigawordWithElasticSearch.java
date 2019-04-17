@@ -87,6 +87,8 @@ public class IndexGigawordWithElasticSearch {
 
   private static final int BATCH_SIZE = 100;
 
+  // make error-prone not complain about the use of allMatch below
+  @SuppressWarnings("ReturnValueIgnored")
   public static void main(String[] argv) throws IOException {
 
     // get parameter file
@@ -118,6 +120,7 @@ public class IndexGigawordWithElasticSearch {
       } else {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
+
 
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
         //noinspection ResultOfMethodCallIgnored
