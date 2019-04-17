@@ -164,9 +164,8 @@ public class IndexGigawordWithElasticSearch {
       }
 
       log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
-
     } catch (Exception e) {
-      log.error("Caught exception: {}", e);
+      log.error("Indexing failed with an exception:", e);
       System.exit(1);
     }
   }
