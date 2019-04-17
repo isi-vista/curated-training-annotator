@@ -77,3 +77,7 @@ A JSON file that reports the search results (including seach time, hit number an
 ```
 less /lfs1/ElasticSearch/elasticsearch-6.6.1/logs/elasticsearch.log
 ```
+
+### Indexing multiple languages
+
+* Be sure to use different `indexName` parameters for each language.
