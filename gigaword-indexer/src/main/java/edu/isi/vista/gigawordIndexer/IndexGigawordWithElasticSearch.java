@@ -76,7 +76,7 @@ public class IndexGigawordWithElasticSearch {
   /**
    * Limits how many documents will be indexed. This is useful mostly for testing purposes.
    */
-  private static final String DOCUMENT_LIMIT_PARAM = "documentLimit";
+  private static final String MAX_DOCS_TO_PROCESS_PARAM = "maxDocsToProcess";
 
   private static int totalDoc = 0;
 
@@ -108,6 +108,10 @@ public class IndexGigawordWithElasticSearch {
               .or("0.0"));
       final int sentenceLimit = parameters.getOptionalInteger(SENTENCE_LIMIT).or(100);
       final Path corpusDirPath = parameters.getExistingDirectory(PARAM_CORPUS_DIRECTORY_PATH).toPath();
+      if (parameters.isPresent(MAX_DOCS_TO_PROCESS_PARAM)) {
+        maxDocumentsToIndex = OptionalInt.of(
+                parameters.getPositiveInteger(MAX_DOCS_TO_PROCESS_PARAM));
+      }
       PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
