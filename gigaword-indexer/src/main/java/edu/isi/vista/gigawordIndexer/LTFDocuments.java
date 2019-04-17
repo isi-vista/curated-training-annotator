@@ -55,27 +55,30 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
   }
 
 
-  private class ArticlesIterator extends AbstractIterator<Article> {
+  private class ArticlesIterator extends AbstractIterator<Article>
+  {
     private LtfReader reader = new LtfReader();
     private ZipEntry currentLtfEntry;
     private ImmutableList<LtfDocument> entryDocs;
     private int docIndex;
 
-    private ArticlesIterator() {
+    private ArticlesIterator()
+    {
       // get first zip entry of Ltf from zip file
-      Optional<ZipEntry> entry = nextLtfEntry();
-      if (entry.isPresent()) {
-        currentLtfEntry = entry.get();
-        try {
+      try {
+        final Optional<ZipEntry> entry = nextLtfEntry();
+        if (entry.isPresent()) {
+          currentLtfEntry = entry.get();
           entryDocs = getDocsForLtfEntry(currentLtfEntry);
           docIndex = 0;
-        } catch (IOException e) {
-          log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
-          log.error(e.getMessage());
-          throw new RuntimeException(e);
         }
-      } else {
-        throw new RuntimeException("Zip file " + zipFile.getName() + " has no entries");
+        else {
+          throw new RuntimeException("Zip file has no entries");
+        }
+      }
+      catch (Exception e) {
+        throw new RuntimeException("Error reading zip file: " + zipFile.getName(),
+                e);
       }
     }
 
