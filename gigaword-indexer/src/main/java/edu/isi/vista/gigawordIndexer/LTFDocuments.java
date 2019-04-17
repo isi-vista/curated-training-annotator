@@ -110,10 +110,9 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
             currentLtfEntry = nextLtfEntry().get();
             entryDocs = getDocsForLtfEntry(currentLtfEntry);
             docIndex = 0;
-          } catch (IOException e) {
-            log.error("Error reading zip file entry: {} in {}", currentLtfEntry.getName(), zipFile.getName());
-            log.error(e.getMessage());
-            throw new RuntimeException(e);
+          } catch (Exception e) {
+            throw new RuntimeException("Error reading zip file entry:" + currentLtfEntry.getName()
+                    + " in " + zipFile.getName(), e);
           }
         }
       }
