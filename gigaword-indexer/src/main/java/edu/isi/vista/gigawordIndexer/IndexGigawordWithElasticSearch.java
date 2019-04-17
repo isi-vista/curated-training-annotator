@@ -160,7 +160,7 @@ public class IndexGigawordWithElasticSearch {
   }
 
   private static ArticleSource getArticleSource(String format,
-          Path gzippedConcatenatedFile) throws IOException
+          Path gzippedConcatenatedFile) throws Exception
   {
     if (format.equalsIgnoreCase("ltf")) {
       return LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile);
