@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * concatenated together.  This class lets you iterate over the documents stored in such a file.
  */
 
-public class ConcatenatedGigawordDocuments implements Iterable<Article> {
+public class ConcatenatedGigawordDocuments implements ArticleSource {
   private final String concatenatedFileText;
 
   private ConcatenatedGigawordDocuments(String concatenatedFileText) {
@@ -30,6 +30,12 @@ public class ConcatenatedGigawordDocuments implements Iterable<Article> {
 
   public Iterator<Article> iterator() {
     return new ArticlesIterator();
+  }
+
+  @Override
+  public void close() throws Exception
+  {
+
   }
 
   private class ArticlesIterator extends AbstractIterator<Article> {

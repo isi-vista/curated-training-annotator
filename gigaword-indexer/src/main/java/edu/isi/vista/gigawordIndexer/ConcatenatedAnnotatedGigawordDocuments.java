@@ -17,7 +17,7 @@ import java.util.zip.GZIPInputStream;
  * authored by the UKP Lab of Technische Universität Darmstadt and is included here for their convenience.
  */
 
-public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Article> {
+public class ConcatenatedAnnotatedGigawordDocuments implements ArticleSource {
     private List<Article> articleList;
     
     private ConcatenatedAnnotatedGigawordDocuments(List<Article> aArticleList) {
@@ -41,7 +41,13 @@ public class ConcatenatedAnnotatedGigawordDocuments implements Iterable<Article>
     public Iterator<Article> iterator() {
         return new AnnotatedArticlesIterator();
     }
-    
+
+    @Override
+    public void close() throws Exception
+    {
+
+    }
+
     private class AnnotatedArticlesIterator extends AbstractIterator<Article> {
         
         private int startNextIndex = 0;

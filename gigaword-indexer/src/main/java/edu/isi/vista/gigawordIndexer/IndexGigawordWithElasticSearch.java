@@ -10,6 +10,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,33 +131,21 @@ public class IndexGigawordWithElasticSearch {
             // continue
             .allMatch(
                 gzippedConcatenatedFile -> {
-                  try {
-                    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
-                    // making huge requests of unbounded size
-                    Iterable<List<Article>> iterator;
-                    if (format.equalsIgnoreCase("ltf")) {
-                      try (LTFDocuments ltfDocuments = LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile)) {
-                        iterator = partition(ltfDocuments, BATCH_SIZE);
+                    try (ArticleSource articleSource = getArticleSource(format,
+                            gzippedConcatenatedFile)) {
+                      // we batch the documents in groups of 100 so we can get the efficiency gains
+                      // from batching without making huge requests of unbounded size
+                      final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
+
+                      boolean shouldContinue = index(client, batchedArticles, indexName, lang,
+                              fractionDocAllowToFail, sentenceLimit);
+                      if (!shouldContinue) {
+                        log.info(
+                                "Indexing terminated early without error, probably due to the user "
+                                        + "requesting a limit on the number of documents indexed");
+                        return false;
                       }
-                    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
-                      log.warn("Indexing an annotated version of Gigaword.");
-                      iterator = partition(ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                    } else if (format.equalsIgnoreCase("gigaword")) {
-                      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                    } else {
-                      iterator = null;
-                      System.err.println("Unknown input for parameter format. " +
-                              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
-                      System.exit(1);
-                    }
-                    boolean shouldContinue = index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
-                    if (!shouldContinue) {
-                      log.info("Indexing terminated early without error, probably due to the user "
-                              + "requesting a limit on the number of documents indexed");
-                      return false;
-                    }
-                  }
-                  catch (Exception e) {
+                  } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
                   return true;
@@ -167,6 +156,22 @@ public class IndexGigawordWithElasticSearch {
     } catch (Exception e) {
       log.error("Indexing failed with an exception:", e);
       System.exit(1);
+    }
+  }
+
+  private static ArticleSource getArticleSource(String format,
+          Path gzippedConcatenatedFile) throws IOException
+  {
+    if (format.equalsIgnoreCase("ltf")) {
+      return LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile);
+    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
+      log.warn("Indexing an annotated version of Gigaword.");
+      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile);
+    } else if (format.equalsIgnoreCase("gigaword")) {
+      return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile);
+    } else {
+      throw new RuntimeException("Unknown input for parameter format. " +
+              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
     }
   }
 

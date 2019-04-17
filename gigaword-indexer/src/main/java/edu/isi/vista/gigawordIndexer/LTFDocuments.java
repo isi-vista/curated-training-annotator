@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LTFDocuments implements Iterable<Article>, Closeable {
+public class LTFDocuments implements ArticleSource {
 
   private static final Logger log = LoggerFactory.getLogger(LTFDocuments.class);
 
@@ -51,7 +51,6 @@ public class LTFDocuments implements Iterable<Article>, Closeable {
 
     ZipFile zipFile = new ZipFile(p.toFile(), StandardCharsets.UTF_8);
     return new LTFDocuments(zipFile);
-
   }
 
 
