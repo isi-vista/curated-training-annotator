@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Date;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.partition;
@@ -72,9 +73,17 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String SENTENCE_LIMIT = "sentenceLimit";
 
+  /**
+   * Limits how many documents will be indexed. This is useful mostly for testing purposes.
+   */
+  private static final String DOCUMENT_LIMIT_PARAM = "documentLimit";
+
   private static int totalDoc = 0;
 
   private static int indexFailed = 0;
+
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  private static OptionalInt maxDocumentsToIndex = OptionalInt.empty();
 
   private static final int BATCH_SIZE = 100;
 
@@ -107,9 +116,12 @@ public class IndexGigawordWithElasticSearch {
       }
 
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+        //noinspection ResultOfMethodCallIgnored
         corpusFiles
             .filter(filePattern::matches)
-            .forEach(
+            // we use allMatch because the inner code will return a boolean indicating whether to
+            // continue
+            .allMatch(
                 gzippedConcatenatedFile -> {
                   try {
                     // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
@@ -130,11 +142,17 @@ public class IndexGigawordWithElasticSearch {
                               "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
                       System.exit(1);
                     }
-                    index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                    boolean shouldContinue = index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
+                    if (!shouldContinue) {
+                      log.info("Indexing terminated early without error, probably due to the user "
+                              + "requesting a limit on the number of documents indexed");
+                      return false;
+                    }
                   }
                   catch (Exception e) {
                     throw new RuntimeException(e);
                   }
+                  return true;
                 });
       }
 
@@ -163,8 +181,12 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-
-  private static void index(
+  /**
+   * Indexes the provided documents.
+   *
+   * Returns whether or not the indexing process should continue.
+   */
+  private static boolean index(
       RestHighLevelClient client,
       Iterable<List<Article>> iterator,
       String indexName,
@@ -198,7 +220,12 @@ public class IndexGigawordWithElasticSearch {
           throw new RuntimeException(bulkResponse.buildFailureMessage());
         }
       }
+
+      if (maxDocumentsToIndex.isPresent() && totalDoc >= maxDocumentsToIndex.getAsInt()) {
+        return false;
+      }
     }
+    return true;
   }
 
   /**
