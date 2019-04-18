@@ -215,7 +215,7 @@ public class IndexGigawordWithElasticSearch {
           }
         } else if (article.getSegments() > sentenceLimit) {
           indexFailed += 1;
-          log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
+          log.warn("Document not indexed because it exceeded the size limit of {}: {}, {}",
               sentenceLimit , article.getSegments(), article.getId());
         } else {
           XContentBuilder sourceBuilder =
