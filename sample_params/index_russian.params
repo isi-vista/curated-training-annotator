@@ -1,4 +1,10 @@
 indexName: russian-ltf
+lang: ru
 corpusDirectoryPath: /lfs1/corpora/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1
 format: ltf
-maxDocsToProcess: 10
+fractionDocsAllowedToFail: 0.1
+primaryHostName: 128.9.35.34
+secondaryHostName: 128.9.35.34
+primaryPort: 9200
+secondaryPort: 9200
+sentenceLimit: 200
