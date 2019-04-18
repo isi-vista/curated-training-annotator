@@ -12,11 +12,14 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.util.stream.Collectors.toList;
 
 public class LTFDocuments implements ArticleSource {
   private static final Logger log = LoggerFactory.getLogger(LTFDocuments.class);
@@ -88,7 +91,7 @@ public class LTFDocuments implements ArticleSource {
                   .map(
                           doc -> new Article(doc.getId(),
                                   doc.getOriginalText().content().utf16CodeUnits(),
-                                  doc.getSegments().size())).iterator();
+                                  doc.getSegments().size())).collect(toList()).iterator();
         } catch (Exception e) {
             return ImmutableList.of(Article.failedArticle("failed", "failed")).iterator();
         }
