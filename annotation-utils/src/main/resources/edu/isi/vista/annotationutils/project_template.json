@@ -225,8 +225,8 @@
   "knowledge_bases" : [ ],
   "external_search" : [ {
     "id" : 8,
-    "name" : "gigaword-english",
-    "properties" : "{\"remoteUrl\":\"http://gaiadev01.isi.edu:9200\",\"indexName\":\"gigaword\",\"searchPath\":\"_search\",\"objectType\":\"texts\",\"resultSize\":1000,\"randomOrder\":true,\"seed\":5}",
+    "name" : "_ELASTIC_SEARCH_INDEX_NAME_",
+    "properties" : "{\"remoteUrl\":\"http://gaiadev01.isi.edu:9200\",\"indexName\":\"_ELASTIC_SEARCH_INDEX_NAME_\",\"searchPath\":\"_search\",\"objectType\":\"texts\",\"resultSize\":1000,\"randomOrder\":true,\"seed\":5}",
     "type" : "elasticSearchProviderFactory"
   } ],
   "recommenders" : [ ],

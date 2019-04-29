@@ -23,10 +23,13 @@ import java.nio.file.Files
 /*
 Generate Inception projects for import for the cross-product of a list of users and the
 events of an ontology.
+
+The ElasticSearch index to search against is specified by the elasticSearchIndexName parameter.
 */
 
 fun main(argv: Array<String>)  {
     val params = Parameters.loadSerifStyle(File(argv[0]))
+
 
     val users = params.getExistingFile("users_list").readLines().toSet()
     val (eventTypes, eventTypesToArguments) = loadOntologyInfo(params)
@@ -38,10 +41,18 @@ fun main(argv: Array<String>)  {
     val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
 
     val jsonProjectTemplate = Resources.getResource("edu/isi/vista/annotationutils/project_template.json").readText()
+    val elasticSearchIndexName = params.getString("elasticSearchIndexName")
+    val projectPrefix = params.getOptionalString("projectPrefix").orNull()
 
     Sets.cartesianProduct(users, eventTypes).forEach { combination ->
         val (user, eventType) = combination
-        val projectName = "$eventType-$user"
+        val prefix = if (projectPrefix != null) {
+            "$projectPrefix-"
+        } else {
+            ""
+        }
+
+        val projectName = "$prefix$eventType-$user"
 
         // jsonTree will be the JSON project config we will output
         // we cast to ObjectNode in order to have a mutable interface
@@ -77,6 +88,21 @@ fun main(argv: Array<String>)  {
         permissionsJson.put("level", "USER")
         permissionsJson.put("user", user)
         projectPermissions.add(permissionsJson)
+
+        // setup ElasticSearch repository
+        val externalSearchJson = jsonTree["external_search"] as ArrayNode
+        for (externalSearchConfigJson in externalSearchJson) {
+            if (externalSearchConfigJson is ObjectNode) {
+                externalSearchConfigJson.put("name", elasticSearchIndexName)
+                externalSearchConfigJson.put("properties",
+                        externalSearchConfigJson.get("properties").asText()
+                                .replace("_ELASTIC_SEARCH_INDEX_NAME_", elasticSearchIndexName))
+            } else {
+                throw java.lang.RuntimeException("Only object nodes expected in list of " +
+                        "external search configurations")
+            }
+        }
+
 
         val outputFile = outputDirectory.resolve("$projectName.zip")
         // we need to delete any existing file or else the zip file system will just add
