@@ -1,0 +1,6 @@
+INCLUDE generate_projects.common.params
+
+users_list: /Users/gabbard/projects/gaia/curated-training/repos/curated-training-annotator/docs/2019-04-users.russian.txt
+output_dir: /Users/gabbard/projects/gaia/curated-training/generated_projects/russian
+elasticSearchIndexName: russian-ltf
+projectPrefix: russian
