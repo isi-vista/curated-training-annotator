@@ -1,0 +1,4 @@
+indexName: ukrainian-ltf
+corpusDirectoryPath: /lfs1/corpora/LDC2017E06_LORELEI_IL4_Incident_Language_Pack_V2.0
+format: ltf
+maxDocsToProcess: 10

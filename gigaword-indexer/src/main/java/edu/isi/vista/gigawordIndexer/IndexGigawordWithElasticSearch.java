@@ -10,6 +10,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Date;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.partition;
@@ -72,12 +74,22 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String SENTENCE_LIMIT = "sentenceLimit";
 
+  /**
+   * Limits how many documents will be indexed. This is useful mostly for testing purposes.
+   */
+  private static final String MAX_DOCS_TO_PROCESS_PARAM = "maxDocsToProcess";
+
   private static int totalDoc = 0;
 
   private static int indexFailed = 0;
 
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  private static OptionalInt maxDocumentsToIndex = OptionalInt.empty();
+
   private static final int BATCH_SIZE = 100;
 
+  // make error-prone not complain about the use of allMatch below
+  @SuppressWarnings("ReturnValueIgnored")
   public static void main(String[] argv) throws IOException {
 
     // get parameter file
@@ -99,6 +111,10 @@ public class IndexGigawordWithElasticSearch {
               .or("0.0"));
       final int sentenceLimit = parameters.getOptionalInteger(SENTENCE_LIMIT).or(100);
       final Path corpusDirPath = parameters.getExistingDirectory(PARAM_CORPUS_DIRECTORY_PATH).toPath();
+      if (parameters.isPresent(MAX_DOCS_TO_PROCESS_PARAM)) {
+        maxDocumentsToIndex = OptionalInt.of(
+                parameters.getPositiveInteger(MAX_DOCS_TO_PROCESS_PARAM));
+      }
       PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
@@ -106,43 +122,56 @@ public class IndexGigawordWithElasticSearch {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
 
+
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+        //noinspection ResultOfMethodCallIgnored
         corpusFiles
             .filter(filePattern::matches)
-            .forEach(
+            // we use allMatch because the inner code will return a boolean indicating whether to
+            // continue
+            .allMatch(
                 gzippedConcatenatedFile -> {
-                  try {
-                    // we batch the documents in groups of 100 so we can get the efficiency gains from batching without
-                    // making huge requests of unbounded size
-                    Iterable<List<Article>> iterator;
-                    if (format.equalsIgnoreCase("ltf")) {
-                      try (LTFDocuments ltfDocuments = LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile)) {
-                        iterator = partition(ltfDocuments, BATCH_SIZE);
+                    try (ArticleSource articleSource = getArticleSource(format,
+                            gzippedConcatenatedFile)) {
+                      // we batch the documents in groups of 100 so we can get the efficiency gains
+                      // from batching without making huge requests of unbounded size
+                      final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
+
+                      boolean shouldContinue = index(client, batchedArticles, indexName, lang,
+                              fractionDocAllowToFail, sentenceLimit);
+                      if (!shouldContinue) {
+                        log.info(
+                                "Indexing terminated early without error, probably due to the user "
+                                        + "requesting a limit on the number of documents indexed");
+                        return false;
                       }
-                    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
-                      log.warn("Indexing an annotated version of Gigaword.");
-                      iterator = partition(ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                    } else if (format.equalsIgnoreCase("gigaword")) {
-                      iterator = partition(ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile), BATCH_SIZE);
-                    } else {
-                      iterator = null;
-                      System.err.println("Unknown input for parameter format. " +
-                              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
-                      System.exit(1);
-                    }
-                    index(client, iterator, indexName, lang, fractionDocAllowToFail, sentenceLimit);
-                  }
-                  catch (Exception e) {
+                  } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
+                  return true;
                 });
       }
 
       log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
-
     } catch (Exception e) {
-      log.error("Caught exception: {}", e);
+      log.error("Indexing failed with an exception:", e);
       System.exit(1);
+    }
+  }
+
+  private static ArticleSource getArticleSource(String format,
+          Path gzippedConcatenatedFile) throws Exception
+  {
+    if (format.equalsIgnoreCase("ltf")) {
+      return LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile);
+    } else if (format.equalsIgnoreCase("annotated_gigaword")) {
+      log.warn("Indexing an annotated version of Gigaword.");
+      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile);
+    } else if (format.equalsIgnoreCase("gigaword")) {
+      return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile);
+    } else {
+      throw new RuntimeException("Unknown input for parameter format. " +
+              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
     }
   }
 
@@ -163,8 +192,12 @@ public class IndexGigawordWithElasticSearch {
                             "http")));
   }
 
-
-  private static void index(
+  /**
+   * Indexes the provided documents.
+   *
+   * Returns whether or not the indexing process should continue.
+   */
+  private static boolean index(
       RestHighLevelClient client,
       Iterable<List<Article>> iterator,
       String indexName,
@@ -182,7 +215,7 @@ public class IndexGigawordWithElasticSearch {
           }
         } else if (article.getSegments() > sentenceLimit) {
           indexFailed += 1;
-          log.error("Document not indexed because it exceeded the size limit of {}: {}, {}",
+          log.warn("Document not indexed because it exceeded the size limit of {}: {}, {}",
               sentenceLimit , article.getSegments(), article.getId());
         } else {
           XContentBuilder sourceBuilder =
@@ -198,7 +231,12 @@ public class IndexGigawordWithElasticSearch {
           throw new RuntimeException(bulkResponse.buildFailureMessage());
         }
       }
+
+      if (maxDocumentsToIndex.isPresent() && totalDoc >= maxDocumentsToIndex.getAsInt()) {
+        return false;
+      }
     }
+    return true;
   }
 
   /**
