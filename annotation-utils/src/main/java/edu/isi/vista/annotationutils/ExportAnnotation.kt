@@ -33,11 +33,26 @@ fun main(argv: Array<String>) {
             user = "inception", password = dbPassword)
 
     transaction(db) {
-        LoggedEventTable.selectAll()
-                .filter { it[LoggedEventTable.event] == "ExternalSearchQueryEvent" }
-                .groupBy { it[LoggedEventTable.user] }
-                .forEach { println("User ${it.key} performed ${it.value.size} searches") }
+        logNumSearchesByUser()
+        logNumAnnotationsByUser()
     }
+}
+
+private fun logNumSearchesByUser() {
+    println("# of Searches by User")
+    LoggedEventTable.selectAll()
+            .filter { it[LoggedEventTable.event] == "ExternalSearchQueryEvent" }
+            .groupBy { it[LoggedEventTable.user] }
+            .forEach { println("User ${it.key} performed ${it.value.size} searches") }
+}
+
+private fun logNumAnnotationsByUser() {
+    println("# of Annotations by User")
+
+    LoggedEventTable.selectAll()
+            .filter { it[LoggedEventTable.event] == "AfterAnnotationUpdateEvent" }
+            .groupBy { it[LoggedEventTable.user] }
+            .forEach { println("User ${it.key} made ${it.value.size} annotations") }
 }
 
 
