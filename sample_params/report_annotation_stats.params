@@ -1,0 +1,4 @@
+hostName: curatedtraining.isi.edu
+port: 3306
+# db password is expected to be specified in an environmental variable
+databasePassword: %CURATED_TRAINING_DB_PASSWORD%

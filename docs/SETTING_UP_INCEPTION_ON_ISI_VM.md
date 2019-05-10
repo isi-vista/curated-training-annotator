@@ -87,6 +87,8 @@ backup.interval=300
 backup.keep.number=10
 
 external-search.enabled=true
+
+remote-api.enabled=true
 ```
 
 ```
