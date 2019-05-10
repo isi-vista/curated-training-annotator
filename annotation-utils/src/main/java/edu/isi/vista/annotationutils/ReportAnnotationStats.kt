@@ -1,14 +1,9 @@
 package edu.isi.vista.annotationutils
 
 import edu.isi.nlp.parameters.Parameters
-import edu.isi.nlp.parameters.Parameters.loadSerifStyle
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
-import mu.KLogging
-import org.apache.jena.vocabulary.XSD.integer
 import org.jetbrains.exposed.dao.LongIdTable
-import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.File
@@ -21,6 +16,15 @@ fun main(argv: Array<String>) {
     val paramsLoader = SerifStyleParameterFileLoader.Builder()
             .interpolateEnvironmentalVariables(true).build()
     val params = paramsLoader.load(File(argv[0]))
+    val db = connectToInceptionDbFromParams(params)
+
+    transaction(db) {
+        logNumSearchesByUser()
+        logNumAnnotationsByUser()
+    }
+}
+
+fun connectToInceptionDbFromParams(params: Parameters): Database {
     val hostname = params.getString("hostName")
     val port = params.getPositiveInteger("port")
     val dbPassword = params.getString("databasePassword")
@@ -28,14 +32,9 @@ fun main(argv: Array<String>) {
     // Inception only official supports MySql, so we hardcode it for now
     // I'm copying the magic stuff at the end of the URL which Inception itself uses when
     // accessing the database.
-    val db = Database.connect("jdbc:mysql://$hostname:$port/inception?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8",
+    return Database.connect("jdbc:mysql://$hostname:$port/inception?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8",
             driver = "com.mysql.jdbc.Driver",
             user = "inception", password = dbPassword)
-
-    transaction(db) {
-        logNumSearchesByUser()
-        logNumAnnotationsByUser()
-    }
 }
 
 private fun logNumSearchesByUser() {
