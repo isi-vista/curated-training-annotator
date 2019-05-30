@@ -157,3 +157,9 @@ We skip the tests because they are time consuming and we assume Inception's CI h
 ```
 sudo less /var/log/inception.log
 ```
+
+# How to restart Inception
+
+```
+sudo systemctl restart inception
+```
