@@ -163,3 +163,13 @@ sudo less /var/log/inception.log
 ```
 sudo systemctl restart inception
 ```
+
+# Update Inception
+
+```
+cd /home/gabbard/inception
+checkout the branch or otherwise put the git repo in the state you want
+mvn clean install -DskipTests=true
+cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
+sudo systemctl restart inception
+```
