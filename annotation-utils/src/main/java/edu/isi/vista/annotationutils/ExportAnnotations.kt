@@ -15,6 +15,7 @@ import mu.KLogging
 import net.java.truevfs.comp.zip.ZipFile
 import java.lang.IllegalArgumentException
 import java.nio.file.Files
+import com.fasterxml.jackson.databind.node.ObjectNode
 
 val logger = KLogging().logger
 
@@ -150,11 +151,12 @@ fun main(argv: Array<String>) {
                         document.name
                     }
 
-                    val jsonBytes = it.getInputStream("$zipEntryName.json")?.readAllBytes()
-
+                    val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                     if (jsonBytes != null) {
-                        val outFileName = documentOutputDir.resolve("${document.name}-${annotationRecord.user}.json");
-                        Files.write(outFileName, jsonBytes)
+                        var jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
+                        jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
+                        val outFileName = documentOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
+                        Files.write(outFileName, jsonTree.toString().toByteArray())
                     } else {
                         throw RuntimeException("Corrupt zip file returned")
                     }
