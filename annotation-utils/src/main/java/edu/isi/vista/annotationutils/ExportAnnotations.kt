@@ -58,7 +58,9 @@ fun main(argv: Array<String>) {
     }
     logger.info { "Connecting to Inception at $inceptionUrl" }
 
-    val mapper = ObjectMapper().registerKotlinModule()
+    val objectMapper = ObjectMapper()
+    val mapper = objectMapper.registerKotlinModule()
+    val writer = objectMapper.writerWithDefaultPrettyPrinter()
 
     // extension function to avoid authentication boilerplate
     fun Request.authenticateToInception() =
@@ -153,10 +155,13 @@ fun main(argv: Array<String>) {
 
                     val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                     if (jsonBytes != null) {
-                        var jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
+                        var jsonTree = objectMapper.readTree(jsonBytes) as ObjectNode
+                        // We cannot distribute the full document text because it is intellectual property. Users with
+                        // access to the original database can restore this field using the 'rehydration' utility
                         jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
                         val outFileName = documentOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
-                        Files.write(outFileName, jsonTree.toString().toByteArray())
+                        val newJsonString = writer.writeValueAsString(jsonTree)
+                        Files.write(outFileName, newJsonString.toByteArray())
                     } else {
                         throw RuntimeException("Corrupt zip file returned")
                     }
