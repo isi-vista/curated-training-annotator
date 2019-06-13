@@ -16,6 +16,11 @@ import net.java.truevfs.comp.zip.ZipFile
 import java.lang.IllegalArgumentException
 import java.nio.file.Files
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.github.kittinunf.fuel.core.FuelError
+import jdk.nashorn.internal.objects.NativeFunction.function
+//import org.apache.tools.ant.Project
+//import org.bouncycastle.asn1.ua.DSTU4145NamedCurves.params
+import java.util.concurrent.TimeUnit
 
 val logger = KLogging().logger
 
@@ -51,6 +56,27 @@ fun main(argv: Array<String>) {
     val inceptionUrl = params.getString("inceptionUrl")
     val inceptionUserName = params.getString("inceptionUsername")
     val inceptionPassword = params.getString("inceptionPassword")
+
+    fun <T> repeatedTry(maxTries: Int=3, timeoutInSeconds: Long=30, function: ()->T): T {
+        var lastExceptionThrown : Exception? = null
+        for (attempt in 0..maxTries) {
+            try {
+                return function()
+            }
+            catch (e: FuelError) {
+                lastExceptionThrown = e
+                logger.warn {"Request $attempt/$maxTries to ??? timed out. Waiting $timeoutInSeconds seconds and trying again."}
+                TimeUnit.SECONDS.sleep(timeoutInSeconds)
+            }
+        }
+        logger.warn {"HTTP request has failed $maxTries times. Aborting."}
+        if (lastExceptionThrown != null) {
+            throw lastExceptionThrown
+        } else {
+            throw java.lang.RuntimeException("This branch should be unreachable")
+        }
+    }
+
     val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").toPath()
 
     if (!inceptionUrl.startsWith("http://")) {
@@ -66,20 +92,20 @@ fun main(argv: Array<String>) {
     fun Request.authenticateToInception() =
             this.authentication().basic(inceptionUserName, inceptionPassword)
 
-    val projects = "$inceptionUrl/api/aero/v1/projects".httpGet()
+    val projects = repeatedTry {"$inceptionUrl/api/aero/v1/projects".httpGet()
             .authenticateToInception()
             .resultObjectThrowingExceptionOnFailure<AeroResult<Project>>(mapper)
-            .body
+            .body}
     logger.info { "Projects on server ${projects.map { it.name }}" }
 
     for (project in projects) {
         logger.info { "Processing project $project" }
         val getDocsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/documents"
-        val documents = getDocsUrl.httpGet(
+        val documents = repeatedTry {getDocsUrl.httpGet(
                 parameters = listOf("projectId" to project.id))
                 .authenticateToInception()
                 .resultObjectThrowingExceptionOnFailure<DocumentResult>(mapper)
-                .body
+                .body}
 
         // to reduce clutter, we only make a directory for a project if it in fact has any
         // annotation
@@ -92,7 +118,7 @@ fun main(argv: Array<String>) {
             // each annotator's annotation for a document are stored separately
             val getAnnotatingUsersUrl = "$inceptionUrl/api/aero/v1/projects/" +
                     "${project.id}/documents/${document.id}/annotations"
-            val annotationRecords = getAnnotatingUsersUrl
+            val annotationRecords = repeatedTry{getAnnotatingUsersUrl
                     .httpGet(
                             parameters = listOf(
                                     "projectId" to project.id,
@@ -101,7 +127,7 @@ fun main(argv: Array<String>) {
                     )
                     .authenticateToInception()
                     .resultObjectThrowingExceptionOnFailure<AeroResult<AnnotatorRecord>>(mapper)
-                    .body
+                    .body}
 
             val documentOutputDir = projectOutputDir.resolve(document.name)
             // to reduce clutter, we only create a directory for a document if it in fact has
@@ -117,8 +143,7 @@ fun main(argv: Array<String>) {
 
                 // the return from this will be the bytes of a a zip file which contains the
                 // JSON representation of the annotation
-                val (_, _, annotationFilesResult) =
-                        getAnnotationsUrl
+                val (_, _, annotationFilesResult) = repeatedTry{getAnnotationsUrl
                                 .httpGet(
                                         parameters = listOf(
                                                 "projectId" to project.id,
@@ -130,7 +155,8 @@ fun main(argv: Array<String>) {
                                         )
                                 )
                                 .authenticateToInception()
-                                .response()
+                                .response()}
+
                 val annotationFileBytes = when (annotationFilesResult) {
                     is Result.Failure<*> -> throw annotationFilesResult.getException()
                     is Result.Success<*> -> annotationFilesResult.get()
@@ -170,6 +196,7 @@ fun main(argv: Array<String>) {
         }
     }
 }
+
 
 private data class Project(val id: Long, val name: String)
 private data class Document(val id: Long, val name: String, val state: String) {
