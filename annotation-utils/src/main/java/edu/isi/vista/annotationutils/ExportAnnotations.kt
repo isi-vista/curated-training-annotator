@@ -156,12 +156,12 @@ fun main(argv: Array<String>) {
                     val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                     if (jsonBytes != null) {
                         var jsonTree = objectMapper.readTree(jsonBytes) as ObjectNode
-                        // We cannot distribute the full document text because it is intellectual property. Users with
-                        // access to the original database can restore this field using the 'rehydration' utility
+                        // Our LDC license does not permit us to distribute the full document text.
+                        // Users may retrieve the text from the original LDC source document releases.
                         jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
                         val outFileName = documentOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
-                        val newJsonString = writer.writeValueAsString(jsonTree)
-                        Files.write(outFileName, newJsonString.toByteArray())
+                        val redactedJsonString = writer.writeValueAsString(jsonTree)
+                        Files.write(outFileName, redactedJsonString.toByteArray())
                     } else {
                         throw RuntimeException("Corrupt zip file returned")
                     }
