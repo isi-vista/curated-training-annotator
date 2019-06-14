@@ -2,4 +2,5 @@ INCLUDE generate_projects.common.params
 
 users_list: /Users/gabbard/projects/gaia/curated-training/repos/curated-training-annotator/docs/liudmyla-user.txt
 output_dir: /Users/gabbard/projects/gaia/curated-training/generated_projects/liudmyla
-elasticSearchIndexName: gigaword
+elasticSearchIndexName: russian-ltf
+projectPrefix: russian

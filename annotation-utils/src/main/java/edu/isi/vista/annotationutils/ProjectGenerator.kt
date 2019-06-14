@@ -103,7 +103,6 @@ fun main(argv: Array<String>)  {
             }
         }
 
-
         val outputFile = outputDirectory.resolve("$projectName.zip")
         // we need to delete any existing file or else the zip file system will just add
         // to its content
