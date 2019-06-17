@@ -125,13 +125,6 @@ fun main(argv: Array<String>) {
                     .resultObjectThrowingExceptionOnFailure<AeroResult<AnnotatorRecord>>(mapper)
                     .body
 
-            val documentOutputDir = projectOutputDir.resolve(document.name)
-            // to reduce clutter, we only create a directory for a document if it in fact has
-            // any annotation
-            if (annotationRecords.isNotEmpty()) {
-                Files.createDirectories(documentOutputDir)
-            }
-
             // an annotation record records user's annotate state for the document
             for (annotationRecord in annotationRecords) {
                 val getAnnotationsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}" +
@@ -177,7 +170,7 @@ fun main(argv: Array<String>) {
                         // Our LDC license does not permit us to distribute the full document text.
                         // Users may retrieve the text from the original LDC source document releases.
                         jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
-                        val outFileName = documentOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
+                        val outFileName = projectOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
                         val redactedJsonString = writer.writeValueAsString(jsonTree)
                         Files.write(outFileName, redactedJsonString.toByteArray())
                     } else {
