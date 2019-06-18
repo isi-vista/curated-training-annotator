@@ -20,10 +20,10 @@ fun main(argv: Array<String>) {
 
     // Create an OriginalTextSource for getting original document text to put in json:
     val textMap = DocIDToFileMappings.forFunction { symbol ->
-        File(gigawordDataDirectory, symbolToFilename(symbol)) as Optional<File>
+        Optional.of(File(gigawordDataDirectory, symbolToFilename(symbol)))
     }
     val indexMap = DocIDToFileMappings.forFunction { symbol ->
-        File(indexDirectory, symbolToFilename(symbol) + ".index") as Optional<File>
+        Optional.of(File(indexDirectory, symbolToFilename(symbol) + ".index"))
     }
     val textSource = OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
 
