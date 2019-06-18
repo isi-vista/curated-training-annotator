@@ -8,6 +8,23 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import edu.isi.nlp.parameters.Parameters
 import java.io.File
 
+/**
+ * Puts the document text back into the 'sofaString' field inside json files created by `ExportAnnotations.kt`
+ *
+ * The program takes one argument, a parameter file in the format described at
+ * https://github.com/isi-vista/nlp-util/blob/master/common-core-open/src/main/java/edu/isi/nlp/parameters/serifstyle/SerifStyleParameterFileLoader.java
+ *
+ * An example is provided in curated-training-annotator/sample_params/rehydrate.params
+ * The required parameter values are:
+ * <ul>
+ *     <li> {@code indexDirectory} is the location of the files produced by {@code IndexFlatGigaword.java}
+            (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
+ *     <li> {@code gigawordDataDirectory} is the location of the gigaword text files </li>
+ *     <li> {@code jsonInputDirectory} is the location of the 'dehydrated' json files produced by {@code ExportAnnotations.kt} </li>
+ *     <li> {@code rehydratedJsonDirectory} is where the new json files will go </li>
+ *  </ul>
+ */
+
 fun main(argv: Array<String>) {
     // Load parameters:
     val params = Parameters.loadSerifStyle(File(argv[0]))
