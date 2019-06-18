@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import edu.isi.nlp.parameters.Parameters
 import java.io.File
 
-
 fun main(argv: Array<String>) {
     // Load parameters:
     val params = Parameters.loadSerifStyle(File(argv[0]))
@@ -20,10 +19,10 @@ fun main(argv: Array<String>) {
 
     // Create an OriginalTextSource for getting original document text to put in json:
     val textMap = DocIDToFileMappings.forFunction { symbol ->
-        Optional.of(File(gigawordDataDirectory, symbolToFilename(symbol)))
+        Optional.of(File(gigawordDataDirectory, docIDToFilename(symbol)))
     }
     val indexMap = DocIDToFileMappings.forFunction { symbol ->
-        Optional.of(File(indexDirectory, symbolToFilename(symbol) + ".index"))
+        Optional.of(File(indexDirectory, docIDToFilename(symbol) + ".index"))
     }
     val textSource = OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
 
@@ -33,7 +32,7 @@ fun main(argv: Array<String>) {
 
     for (projectDir in jsonInputDirectory.listFiles()) {
         if (!projectDir.isDirectory()) {
-            continue;
+            continue
         }
         val projectOutDir = File(outputDirectory, projectDir.name)
         projectOutDir.mkdir()
@@ -50,11 +49,10 @@ fun main(argv: Array<String>) {
     }
 }
 
-fun symbolToFilename(symbol: Symbol?): String? {
-    // Given document ID, e,g,
+fun docIDToFilename(symbol: Symbol?): String? {
+    // e.g. AFP_ENG_19960918.0012 -> afp_eng/afp_eng_199609
     val st = symbol?.asString()?.toLowerCase()
     val dir = st?.substring(0, 7) //
     val basename = st?.substring(0, 14)
     return "$dir/$basename"
 }
-
