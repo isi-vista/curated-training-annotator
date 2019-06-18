@@ -1,0 +1,4 @@
+gigawordDataDirectory: /Users/admin/giga/gigaword_eng_5/data/
+indexDirectory: /Users/admin/giga/indices/
+dehydratedJsonDirectory: /Users/admin/giga/export_reduced/
+rehydratedJsonDirectory: /Users/admin/giga/rehydrated/
