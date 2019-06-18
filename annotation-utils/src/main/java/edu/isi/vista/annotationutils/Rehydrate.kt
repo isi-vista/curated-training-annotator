@@ -1,18 +1,15 @@
 package edu.isi.vista.annotationutils
 
-import com.fasterxml.jackson.databind.JsonNode
 import edu.isi.nlp.io.OffsetIndexedCorpus
 import edu.isi.nlp.symbols.Symbol
 import edu.isi.nlp.io.DocIDToFileMappings
 import com.google.common.base.Optional
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.isi.nlp.parameters.Parameters
-import java.nio.file.Files
 import java.io.File
 
 
-fun main(argv: List<String>) {
+fun main(argv: Array<String>) {
     // Load parameters:
     val params = Parameters.loadSerifStyle(File(argv[0]))
     val indexDirectory = params.getExistingDirectory("indexDirectory")
