@@ -48,7 +48,8 @@ fun main(argv: Array<String>) {
             // First 21 characters of the filename are the document id
             // Example filename is AFP_ENG_19960918.0012-admin.json
             val docID = Symbol.from(jsonFile.name.substring(0, 21))
-            val text = textSource.getOriginalText(docID).get()
+            val text = textSource.getOriginalText(docID).orNull()
+                    ?: throw RuntimeException("Could not get original text for $docID")
             // TODO: check if text is absent
             jsonTree.replaceFieldEverywhere("sofaString", text)
             val outFile = File(projectOutDir, jsonFile.name)
@@ -70,7 +71,7 @@ fun makeTextSource(params: Parameters): OriginalTextSource {
 
 fun docIDToFilename(symbol: Symbol?): String {
     if (symbol == null) {
-        throw Error()
+        throw RuntimeException("Got null symbol")
     }
     // e.g. AFP_ENG_19960918.0012 -> afp_eng/afp_eng_199609
     val st = symbol?.asString()?.toLowerCase()
