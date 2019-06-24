@@ -54,25 +54,6 @@ fun main(argv: Array<String>) {
     val inceptionUserName = params.getString("inceptionUsername")
     val inceptionPassword = params.getString("inceptionPassword")
 
-    fun <T> repeatedTry(maxTries: Int = 3, timeoutInSeconds: Long = 30, function: () -> ResponseResultOf<Any>): T {
-        for (attempt in 0..maxTries) {
-            val (_, _, result) = function()
-            when (result) {
-                is Result.Success<*> -> result.get()
-                is Result.Failure<*> -> {
-                    println(attempt)
-                    logger.warn {
-                        "Request $attempt/$maxTries to ??? timed out. Waiting $timeoutInSeconds seconds and trying again."
-                    }
-                    TimeUnit.SECONDS.sleep(timeoutInSeconds)
-//                    repeatedTry(maxTries - 1, timeoutInSeconds, function)
-                }
-                else -> throw RuntimeException("Impossible branch")
-            }
-        }
-        throw RuntimeException("HTTP request has failed $maxTries times. Aborting.")
-    }
-
     val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").toPath()
 
     if (!inceptionUrl.startsWith("http://")) {
