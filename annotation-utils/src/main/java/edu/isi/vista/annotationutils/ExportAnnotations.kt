@@ -106,27 +106,32 @@ fun main(argv: Array<String>) {
 
             // an annotation record records user's annotate state for the document
             for (annotationRecord in annotationRecords) {
+                if (annotationRecord.state == "NEW") {
+                    // no actual annotation
+                    logger.warn { "Skipping $annotationRecord in $project because it is NEW" }
+                    continue
+                }
                 val getAnnotationsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}" +
                         "/documents/${document.id}/annotations/${annotationRecord.user}"
 
                 // the return from this will be the bytes of a a zip file which contains the
                 // JSON representation of the annotation
                 val annotationFileBytes =
-                    getAnnotationsUrl
-                            .httpGet(
-                                    parameters = listOf(
-                                            "projectId" to project.id,
-                                            "documentId" to document.id,
-                                            "userId" to annotationRecord.user,
-                                            // without this, it just downloads the original source
-                                            // text
-                                            "format" to "json"
-                                    )
-                            )
-                            .authenticateToInception()
-                            .retryOnFailure()
+                        getAnnotationsUrl
+                                .httpGet(
+                                        parameters = listOf(
+                                                "projectId" to project.id,
+                                                "documentId" to document.id,
+                                                "userId" to annotationRecord.user,
+                                                // without this, it just downloads the original source
+                                                // text
+                                                "format" to "json"
+                                        )
+                                )
+                                .authenticateToInception()
+                                .retryOnFailure()
                 if (annotationFileBytes == null) {
-                    logger.warn { "Skipping $annotationRecord in $project" }
+                    logger.warn { "Skipping $annotationRecord in $project due to timeout" }
                     continue
                 }
 
@@ -173,12 +178,13 @@ private data class Document(val id: Long, val name: String, val state: String) {
         }
     }
 }
+
 private data class DocumentResult(val messages: List<String>, val body: List<Document>)
 private data class AnnotatorRecord(val user: String, val state: String, val timestamp: String?)
 private data class AeroResult<T>(val messages: List<String>, val body: List<T>)
 
 private inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFailure(
-    mapper: ObjectMapper
+        mapper: ObjectMapper
 ): T {
     val (_, _, result) = this.responseObject<T>(mapper)
 
