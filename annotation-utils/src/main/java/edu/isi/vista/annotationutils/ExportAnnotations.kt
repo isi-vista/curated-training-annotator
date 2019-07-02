@@ -1,22 +1,20 @@
 package edu.isi.vista.annotationutils
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.kittinunf.fuel.core.Request
 import com.github.kittinunf.fuel.core.extensions.authentication
 import com.github.kittinunf.fuel.httpGet
 import com.github.kittinunf.fuel.jackson.responseObject
-import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
-import java.io.File
 import com.github.kittinunf.result.Result
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
+import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import mu.KLogging
 import net.java.truevfs.comp.zip.ZipFile
-import java.lang.IllegalArgumentException
+import java.io.File
 import java.nio.file.Files
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.github.kittinunf.fuel.core.ResponseResultOf
 import java.util.concurrent.TimeUnit
 
 val logger = KLogging().logger
@@ -127,6 +125,10 @@ fun main(argv: Array<String>) {
                             )
                             .authenticateToInception()
                             .retryOnFailure()
+                if (annotationFileBytes == null) {
+                    logger.warn { "Skipping $annotationRecord in $project" }
+                    continue
+                }
 
                 // Java's ZipFile class, for unknown reasons, can only work from Files and not
                 // in-memory bytes, so we make an in-memory file system to hold the zip file
@@ -190,10 +192,10 @@ private inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFail
     }
 }
 
-private fun Request.retryOnFailure(maxTries: Int = 3, timeoutInSeconds: Long = 30): ByteArray {
+private fun Request.retryOnFailure(maxTries: Int = 3, timeoutInSeconds: Long = 30): ByteArray? {
     val (_, _, result) = this.response()
     if (maxTries == 0)
-        throw RuntimeException("HTTP request has failed. Aborting.")
+        return null
     return when (result) {
         is Result.Success<*> -> result.get()
         is Result.Failure<*> -> {
