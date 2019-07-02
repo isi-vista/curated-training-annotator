@@ -12,6 +12,8 @@ import java.nio.file.Paths
 
 /**
  * Puts the document text back into the 'sofaString' field inside json files created by `ExportAnnotations.kt`
+ * They are redacted from the json export because our LDC license does not permit us to distribute the full document text.
+ *
  *
  * The program takes one argument, a parameter file in the format described at
  * https://github.com/isi-vista/nlp-util/blob/master/common-core-open/src/main/java/edu/isi/nlp/parameters/serifstyle/SerifStyleParameterFileLoader.java
