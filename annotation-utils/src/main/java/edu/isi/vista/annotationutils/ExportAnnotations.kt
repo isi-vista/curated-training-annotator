@@ -131,7 +131,7 @@ fun main(argv: Array<String>) {
                                 .authenticateToInception()
                                 .retryOnFailure()
                 if (annotationFileBytes == null) {
-                    logger.warn { "Skipping $annotationRecord in $project due to timeout" }
+                    logger.warn { "Skipping $annotationRecord in $project due to network error" }
                     continue
                 }
 
@@ -199,17 +199,21 @@ private inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFail
 }
 
 private fun Request.retryOnFailure(maxTries: Int = 3, timeoutInSeconds: Long = 30): ByteArray? {
-    val (_, _, result) = this.response()
-    if (maxTries == 0)
-        return null
-    return when (result) {
-        is Result.Success<*> -> result.get()
-        is Result.Failure<*> -> {
-            logger.warn {
-                "Request timed out. Waiting $timeoutInSeconds seconds and trying again."
+    for (i in 1..maxTries) {
+        val (_, _, result) = this.response()
+        when (result) {
+            is Result.Success<*> -> return result.get()
+            is Result.Failure<*> -> {
+                if (i < maxTries) {
+                    logger.warn {
+                        "Request $i/$maxTries failed. Waiting $timeoutInSeconds seconds and trying again."
+                    }
+                    TimeUnit.SECONDS.sleep(timeoutInSeconds)
+                }
+
             }
-            TimeUnit.SECONDS.sleep(timeoutInSeconds)
-            this.retryOnFailure(maxTries - 1, timeoutInSeconds)
         }
     }
+    logger.warn { "Final request failed" }
+    return null
 }
