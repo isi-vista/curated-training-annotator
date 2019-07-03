@@ -3,6 +3,7 @@ package edu.isi.vista.annotationutils
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.github.kittinunf.fuel.core.FuelError
 import com.github.kittinunf.fuel.core.Request
 import com.github.kittinunf.fuel.core.extensions.authentication
 import com.github.kittinunf.fuel.httpGet
@@ -41,6 +42,9 @@ val logger = KLogging().logger
  *     hierarchy beneath it will look like "projectName/documentName/documentName-userName.json"</li>
  *  </ul>
  */
+
+private data class Project(val id: Long, val name: String)
+
 fun main(argv: Array<String>) {
     if (argv.size != 1) {
         throw RuntimeException("Expected a single argument, a parameter file")
@@ -67,20 +71,31 @@ fun main(argv: Array<String>) {
     fun Request.authenticateToInception() =
             this.authentication().basic(inceptionUserName, inceptionPassword)
 
-    val projects = "$inceptionUrl/api/aero/v1/projects".httpGet()
-            .authenticateToInception()
-            .resultObjectThrowingExceptionOnFailure<AeroResult<Project>>(mapper)
-            .body
+    val projects = retryOnFuelError {
+        "$inceptionUrl/api/aero/v1/projects".httpGet()
+                .authenticateToInception()
+                .resultObjectThrowingExceptionOnFailure<AeroResult<Project>>(mapper)
+                .body
+    }
+    if (projects == null) {
+        throw java.lang.RuntimeException("Could not fetch projects from $inceptionUrl. Aborting")
+    }
     logger.info { "Projects on server ${projects.map { it.name }}" }
 
     for (project in projects) {
         logger.info { "Processing project $project" }
         val getDocsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/documents"
-        val documents = getDocsUrl.httpGet(
-                parameters = listOf("projectId" to project.id))
-                .authenticateToInception()
-                .resultObjectThrowingExceptionOnFailure<DocumentResult>(mapper)
-                .body
+        val documents = retryOnFuelError {
+            getDocsUrl.httpGet(
+                    parameters = listOf("projectId" to project.id))
+                    .authenticateToInception()
+                    .resultObjectThrowingExceptionOnFailure<DocumentResult>(mapper)
+                    .body
+        }
+        if (documents == null) {
+            logger.warn { "Skipping $project due to web errors" }
+            continue
+        }
 
         // to reduce clutter, we only make a directory for a project if it in fact has any
         // annotation
@@ -93,22 +108,28 @@ fun main(argv: Array<String>) {
             // each annotator's annotation for a document are stored separately
             val getAnnotatingUsersUrl = "$inceptionUrl/api/aero/v1/projects/" +
                     "${project.id}/documents/${document.id}/annotations"
-            val annotationRecords = getAnnotatingUsersUrl
-                    .httpGet(
-                            parameters = listOf(
-                                    "projectId" to project.id,
-                                    "documentId" to document.id
-                            )
-                    )
-                    .authenticateToInception()
-                    .resultObjectThrowingExceptionOnFailure<AeroResult<AnnotatorRecord>>(mapper)
-                    .body
+            val annotationRecords = retryOnFuelError {
+                getAnnotatingUsersUrl
+                        .httpGet(
+                                parameters = listOf(
+                                        "projectId" to project.id,
+                                        "documentId" to document.id
+                                )
+                        )
+                        .authenticateToInception()
+                        .resultObjectThrowingExceptionOnFailure<AeroResult<AnnotatorRecord>>(mapper)
+                        .body
+            }
+            if (annotationRecords == null) {
+                logger.warn { "Skipping $document due to network errors" }
+                continue
+            }
 
             // an annotation record records user's annotate state for the document
             for (annotationRecord in annotationRecords) {
                 if (annotationRecord.state == "NEW") {
                     // no actual annotation
-                    logger.warn { "Skipping $annotationRecord in $project because it is NEW" }
+                    logger.warn { "Skipping $annotationRecord because it is NEW" }
                     continue
                 }
                 val getAnnotationsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}" +
@@ -129,9 +150,9 @@ fun main(argv: Array<String>) {
                                         )
                                 )
                                 .authenticateToInception()
-                                .retryOnFailure()
+                                .retryOnResponseFailure()
                 if (annotationFileBytes == null) {
-                    logger.warn { "Skipping $annotationRecord in $project due to network error" }
+                    logger.warn { "Skipping $annotationRecord due to network errors" }
                     continue
                 }
 
@@ -158,6 +179,8 @@ fun main(argv: Array<String>) {
                         // Our LDC license does not permit us to distribute the full document text.
                         // Users may retrieve the text from the original LDC source document releases.
                         jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
+                        // Note that output file paths are unique because they include the project name, the document
+                        // id, and the annotator name. Each annotator can only annotate a document once in a project.
                         val outFileName = projectOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
                         val redactedJsonString = writer.writeValueAsString(jsonTree)
                         Files.write(outFileName, redactedJsonString.toByteArray())
@@ -168,9 +191,9 @@ fun main(argv: Array<String>) {
             }
         }
     }
+    logger.info { "all done!" }
 }
 
-private data class Project(val id: Long, val name: String)
 private data class Document(val id: Long, val name: String, val state: String) {
     init {
         if (name.isEmpty()) {
@@ -198,7 +221,24 @@ private inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFail
     }
 }
 
-private fun Request.retryOnFailure(maxTries: Int = 3, timeoutInSeconds: Long = 30): ByteArray? {
+fun <T> retryOnFuelError(maxTries: Int = 3, timeoutInSeconds: Long = 5, function: () -> T): T? {
+    for (i in 1..maxTries) {
+        try {
+            return function()
+        } catch (e: FuelError) {
+            logger.warn { e }
+            if (i < maxTries) {
+                logger.warn { "Request $i/$maxTries had FuelError. Waiting $timeoutInSeconds seconds and trying again." }
+                TimeUnit.SECONDS.sleep(timeoutInSeconds)
+            }
+        }
+    }
+    logger.warn { "HTTP request has failed $maxTries times. Aborting." }
+    return null
+}
+
+
+private fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5): ByteArray? {
     for (i in 1..maxTries) {
         val (_, _, result) = this.response()
         when (result) {
@@ -206,14 +246,13 @@ private fun Request.retryOnFailure(maxTries: Int = 3, timeoutInSeconds: Long = 3
             is Result.Failure<*> -> {
                 if (i < maxTries) {
                     logger.warn {
-                        "Request $i/$maxTries failed. Waiting $timeoutInSeconds seconds and trying again."
+                        "Request $i/$maxTries response failed. Waiting $timeoutInSeconds seconds and trying again."
                     }
                     TimeUnit.SECONDS.sleep(timeoutInSeconds)
                 }
-
             }
         }
     }
-    logger.warn { "Final request failed" }
+    logger.warn { "HTTP request has failed $maxTries times. Aborting." }
     return null
 }
