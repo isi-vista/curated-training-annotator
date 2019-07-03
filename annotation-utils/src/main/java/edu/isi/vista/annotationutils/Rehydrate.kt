@@ -52,7 +52,6 @@ fun main(argv: Array<String>) {
             val docID = Symbol.from(jsonFile.name.substring(0, 21))
             val text = textSource.getOriginalText(docID).orNull()
                     ?: throw RuntimeException("Could not get original text for $docID")
-            // TODO: check if text is absent
             jsonTree.replaceFieldEverywhere("sofaString", text)
             val outFile = File(projectOutDir, jsonFile.name)
             outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
