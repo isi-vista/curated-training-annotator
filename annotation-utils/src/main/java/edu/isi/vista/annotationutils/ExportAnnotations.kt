@@ -63,9 +63,8 @@ fun main(argv: Array<String>) {
     }
     logger.info { "Connecting to Inception at $inceptionUrl" }
 
-    val objectMapper = ObjectMapper()
-    val mapper = objectMapper.registerKotlinModule()
-    val writer = objectMapper.writerWithDefaultPrettyPrinter()
+    val mapper = ObjectMapper().registerKotlinModule()
+    val writer = ObjectMapper().writerWithDefaultPrettyPrinter()
 
     // extension function to avoid authentication boilerplate
     fun Request.authenticateToInception() =
@@ -175,7 +174,7 @@ fun main(argv: Array<String>) {
 
                     val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                     if (jsonBytes != null) {
-                        var jsonTree = objectMapper.readTree(jsonBytes) as ObjectNode
+                        var jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
                         // Our LDC license does not permit us to distribute the full document text.
                         // Users may retrieve the text from the original LDC source document releases.
                         jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")

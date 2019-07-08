@@ -18,28 +18,28 @@ import java.nio.file.Paths
  * The program takes one argument, a parameter file in the format described at
  * https://github.com/isi-vista/nlp-util/blob/master/common-core-open/src/main/java/edu/isi/nlp/parameters/serifstyle/SerifStyleParameterFileLoader.java
  *
- * An example is provided in curated-training-annotator/sample_params/rehydrate.params
+ * An example is provided in curated-training-annotator/sample_params/restore-text.params
  * The required parameter values are:
  * <ul>
  *     <li> {@code indexDirectory} is the location of the files produced by {@code IndexFlatGigaword.java}
 (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
  *     <li> {@code gigawordDataDirectory} is the location of the gigaword text files </li>
- *     <li> {@code jsonInputDirectory} is the location of the 'dehydrated' json files produced by {@code ExportAnnotations.kt} </li>
- *     <li> {@code rehydratedJsonDirectory} is where the new json files will go </li>
+ *     <li> {@code inputJsonDirectory} is the location of the stripped json files produced by {@code ExportAnnotations.kt} </li>
+ *     <li> {@code restoredJsonDirectory} is where the new json files will go </li>
  *  </ul>
  */
 
 fun main(argv: Array<String>) {
     val params = Parameters.loadSerifStyle(File(argv[0]))
-    val jsonInputDirectory = params.getCreatableDirectory("dehydratedJsonDirectory")
-    val outputDirectory = params.getCreatableDirectory("rehydratedJsonDirectory")
+    val inputJsonDirectory = params.getCreatableDirectory("inputJsonDirectory")
+    val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")
 
     // Make objects for reading, parsing, and writing json:
     val objectMapper = ObjectMapper()
     val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
     val textSource = makeTextSource(params)
 
-    for (projectDir in jsonInputDirectory.listFiles()) {
+    for (projectDir in inputJsonDirectory.listFiles()) {
         if (!projectDir.isDirectory()) {
             continue
         }

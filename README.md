@@ -6,9 +6,9 @@ Tools for the curated training annotation process:
 
 This will produce Inception annotation projects for the cross-product of a set of users and the event types of an AIDA ontology.
 
-# Exporting and Rehydrating Annotations
+# Exporting and Restoring Annotations
 
-Use `ExportAnnotations.kt` to pull all projects from an `INCEpTION` server. If you have access to the LDC database, then you can put the full document text into the JSON files using `Rehydrate.kt`
+Use `ExportAnnotations.kt` to pull all projects from an `INCEpTION` server. If you have access to the LDC database, then you can put the full document text into the JSON files using `RestoreJson.kt`
 
 ## Note on JVM code
 
