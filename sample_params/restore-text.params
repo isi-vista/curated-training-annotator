@@ -1,0 +1,4 @@
+gigawordDataDirectory: /Users/admin/giga/gigaword_eng_5/data/
+indexDirectory: /Users/admin/giga/indices/
+inputJsonDirectory: /Users/admin/giga/export/
+restoredJsonDirectory: /Users/admin/giga/restored/
