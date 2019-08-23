@@ -34,7 +34,13 @@ import java.nio.file.Paths
 class RestoreJson {
     companion object {
         fun main(argv: Array<String>) {
+            if (argv.size != 1) {
+                throw RuntimeException("Expected a single argument, a parameter file")
+            }
             val params = Parameters.loadSerifStyle(File(argv[0]))
+            restore(params)
+        }
+        fun restore(params: Parameters) {
             val inputJsonDirectory = params.getExistingDirectory("inputJsonDirectory")!!
             val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")!!
 

@@ -53,6 +53,10 @@ class ExportAnnotations {
             val paramsLoader = SerifStyleParameterFileLoader.Builder()
                     .interpolateEnvironmentalVariables(true).build()
             val params = paramsLoader.load(File(argv[0]))
+            export(params)
+        }
+
+        fun export(params: edu.isi.nlp.parameters.Parameters) {
             val inceptionUrl = params.getString("inceptionUrl")
             val inceptionUserName = params.getString("inceptionUsername")
             val inceptionPassword = params.getString("inceptionPassword")
