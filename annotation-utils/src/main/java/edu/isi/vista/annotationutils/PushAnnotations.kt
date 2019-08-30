@@ -196,8 +196,11 @@ fun pushUpdatedAnnotations(git: Git) {
                 .setMessage("includes annotations through ${currentDate.getTime()}").call()
         val tag = git.tag().setName(formatter.format(currentDate.getTime())).call()
         logger.info {"Pushing updated data"}
+        // This first push ensures that the tag gets pushed along with the commit
+        git.push().add(tag)
+                .setTransportConfigCallback(SshConfig("~/.ssh/id_rsa"))
+                .call()
         val iterable = git.push()
-                .add(tag)
                 .setTransportConfigCallback(SshConfig("~/.ssh/id_rsa"))
                 .call()
         val pushResult = iterable.iterator().next()
