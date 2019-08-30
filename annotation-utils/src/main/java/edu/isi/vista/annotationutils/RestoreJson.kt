@@ -31,40 +31,50 @@ import java.nio.file.Paths
  *  </ul>
  */
 
-fun main(argv: Array<String>) {
-    val params = Parameters.loadSerifStyle(File(argv[0]))
-    val inputJsonDirectory = params.getExistingDirectory("inputJsonDirectory")!!
-    val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")!!
-
-    // Make objects for reading, parsing, and writing json:
-    val objectMapper = ObjectMapper()
-    val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
-    val textSource = makeTextSource(params)
-
-    inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
-        val filename = jsonFile.name
-        if (filename.contains(Regex("[\b_]ENG[\b_]"))) {
-            // The project directory is the path to this file with the input directory components
-            // stripped off the front, then joined with the desired output directory.
-            val projectOutDir = Paths.get(
-                    outputDirectory.toString(),
-                    jsonFile.toPath().removePrefixPath(inputJsonDirectory.toPath()).toString()
-            ).parent.toAbsolutePath()
-            if (Files.notExists(projectOutDir)) {
-                Files.createDirectories(projectOutDir)
+class RestoreJson {
+    companion object {
+        fun main(argv: Array<String>) {
+            if (argv.size != 1) {
+                throw RuntimeException("Expected a single argument, a parameter file")
             }
-            val jsonTree = objectMapper.readTree(jsonFile)
-            // First 21 characters of the filename are the document id
-            // Example filename is AFP_ENG_19960918.0012-admin.json
-            val docID = Symbol.from(filename.substring(0, 21))
-            val text = textSource.getOriginalText(docID).orNull()
-                    ?: throw RuntimeException("Could not get original text for $docID")
-            jsonTree.replaceFieldEverywhere("sofaString", text)
-            val outFile = File(projectOutDir.toString(), filename)
-            outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
-            logger.info { "Restored $filename" }
-        } else {
-            logger.warn { "Cannot restore $filename, only English is supported" }
+            val params = Parameters.loadSerifStyle(File(argv[0]))
+            restore(params)
+        }
+        fun restore(params: Parameters) {
+            val inputJsonDirectory = params.getExistingDirectory("inputJsonDirectory")!!
+            val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")!!
+
+            // Make objects for reading, parsing, and writing json:
+            val objectMapper = ObjectMapper()
+            val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
+            val textSource = makeTextSource(params)
+
+            inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
+                val filename = jsonFile.name
+                if (filename.contains(Regex("[\b_]ENG[\b_]"))) {
+                    // The project directory is the path to this file with the input directory components
+                    // stripped off the front, then joined with the desired output directory.
+                    val projectOutDir = Paths.get(
+                            outputDirectory.toString(),
+                            jsonFile.toPath().removePrefixPath(inputJsonDirectory.toPath()).toString()
+                    ).parent.toAbsolutePath()
+                    if (Files.notExists(projectOutDir)) {
+                        Files.createDirectories(projectOutDir)
+                    }
+                    val jsonTree = objectMapper.readTree(jsonFile)
+                    // First 21 characters of the filename are the document id
+                    // Example filename is AFP_ENG_19960918.0012-admin.json
+                    val docID = Symbol.from(filename.substring(0, 21))
+                    val text = textSource.getOriginalText(docID).orNull()
+                            ?: throw RuntimeException("Could not get original text for $docID")
+                    jsonTree.replaceFieldEverywhere("sofaString", text)
+                    val outFile = File(projectOutDir.toString(), filename)
+                    outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
+                    logger.info { "Restored $filename" }
+                } else {
+                    logger.warn { "Cannot restore $filename, only English is supported" }
+                }
+            }
         }
     }
 }
