@@ -53,61 +53,66 @@ import java.util.*
  * Postcondition: The exported annotations will be saved within a folder named `data/` in the local
  * working directory.
  */
-fun main(argv: Array<String>) {
-    if (argv.size != 1) {
-        throw RuntimeException("Expected a single argument: a parameter file")
-    }
-    val paramsLoader = SerifStyleParameterFileLoader.Builder()
-            .interpolateEnvironmentalVariables(true).build()
-    val params = paramsLoader.load(File(argv[0]))
 
-    /**
-     * WARNING: while the following line is intended for debugging purposes, it will print the
-     * interpolated Inception password to the log. If this is of concern to you, we recommend
-     * removing this line before running the code.
-     */
-    logger.info {params.dump()}
+class PushAnnotations {
+    companion object {
+        fun main(argv: Array<String>) {
+            if (argv.size != 1) {
+                throw RuntimeException("Expected a single argument: a parameter file")
+            }
+            val paramsLoader = SerifStyleParameterFileLoader.Builder()
+                    .interpolateEnvironmentalVariables(true).build()
+            val params = paramsLoader.load(File(argv[0]))
 
-    val repoToPushTo = params.getString("repoToPushTo")
-    val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
+            /**
+             * WARNING: while the following line is intended for debugging purposes, it will print the
+             * interpolated Inception password to the log. If this is of concern to you, we recommend
+             * removing this line before running the code.
+             */
+            logger.info {params.dump()}
 
-    val exportAnnotationsParamsBuilder = Parameters.builder()
-    exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
-    exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
-    exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
-    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-    val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
+            val repoToPushTo = params.getString("repoToPushTo")
+            val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
-    val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
-        Parameters.builder()
-                .set("indexDirectory", params.getString("indexDirectory"))
-                .set("gigawordDataDirectory", params.getString("gigawordDataDirectory"))
-                .set("inputJsonDirectory", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-                .set("restoredJsonDirectory", "$localWorkingCopyDirectory" + params.getString("restoredJsonDirectory"))
-                .build()
-    } else {
-        null
-    }
+            val exportAnnotationsParamsBuilder = Parameters.builder()
+            exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
+            exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
+            exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
+            exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+            val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
-    setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
+            val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
+                Parameters.builder()
+                        .set("indexDirectory", params.getString("indexDirectory"))
+                        .set("gigawordDataDirectory", params.getString("gigawordDataDirectory"))
+                        .set("inputJsonDirectory", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+                        .set("restoredJsonDirectory", "$localWorkingCopyDirectory" + params.getString("restoredJsonDirectory"))
+                        .build()
+            } else {
+                null
+            }
 
-        // Run ExportAnnotations.kt
-        logger.info { "Beginning ExportAnnotations" }
-        ExportAnnotations.export(exportAnnotationsParams)
+            setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
-        // If user requests, run RestoreJson.kt
-        if (restoreJsonParams != null) {
-            logger.info { "Beginning RestoreJson" }
-            RestoreJson.restore(restoreJsonParams)
-        } else {
-            logger.info { "Skipping RestoreJson" }
+                // Run ExportAnnotations.kt
+                logger.info { "Beginning ExportAnnotations" }
+                ExportAnnotations.export(exportAnnotationsParams)
+
+                // If user requests, run RestoreJson.kt
+                if (restoreJsonParams != null) {
+                    logger.info { "Beginning RestoreJson" }
+                    RestoreJson.restore(restoreJsonParams)
+                } else {
+                    logger.info { "Skipping RestoreJson" }
+                }
+
+                // Push new annotations
+                pushUpdatedAnnotations(git)
+            }
+
+            logger.info {"Done!"}
         }
-
-        // Push new annotations
-        pushUpdatedAnnotations(git)
     }
-
-    logger.info {"Done!"}
 }
 
 /**
