@@ -291,6 +291,18 @@
 							</execution>
 						</executions>
 					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>appassembler-maven-plugin</artifactId>
+						<configuration>
+							<programs>
+								<program>
+									<mainClass>edu.isi.vista.annotationutils.PushAnnotationsKt</mainClass>
+									<id>pushAnnotations</id>
+								</program>
+							</programs>
+						</configuration>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
