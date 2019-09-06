@@ -53,6 +53,7 @@ import java.util.*
  * Postcondition: The exported annotations will be saved within a folder named `data/` in the local
  * working directory.
  */
+
 fun main(argv: Array<String>) {
     if (argv.size != 1) {
         throw RuntimeException("Expected a single argument: a parameter file")
@@ -109,6 +110,7 @@ fun main(argv: Array<String>) {
 
     logger.info {"Done!"}
 }
+
 
 /**
  * Ensures that `localWorkingCopyDirectory` is a checkout of `repoToPushTo` in a clean state.
