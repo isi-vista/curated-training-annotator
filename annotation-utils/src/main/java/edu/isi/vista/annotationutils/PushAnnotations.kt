@@ -77,7 +77,6 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-    exportAnnotationsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
@@ -112,7 +111,7 @@ fun main(argv: Array<String>) {
 
         // Get annotation statistics
         logger.info { "Collecting annotation statistics"}
-        ExtractAnnotationStats.extractStats((extractAnnotationStatsParams))
+        ExtractAnnotationStats.extractStats(extractAnnotationStatsParams)
 
         // Push new annotations
         pushUpdatedAnnotations(git)
