@@ -77,6 +77,7 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    exportAnnotationsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
@@ -89,6 +90,11 @@ fun main(argv: Array<String>) {
     } else {
         null
     }
+
+    val extractAnnotationStatsParamsBuilder = Parameters.builder()
+    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
+    val extractAnnotationStatsParams = exportAnnotationsParamsBuilder.build()
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
@@ -103,6 +109,10 @@ fun main(argv: Array<String>) {
         } else {
             logger.info { "Skipping RestoreJson" }
         }
+
+        // Get annotation statistics
+        logger.info { "Collecting annotation statistics"}
+        ExtractAnnotationStats.extractStats((extractAnnotationStatsParams))
 
         // Push new annotations
         pushUpdatedAnnotations(git)
