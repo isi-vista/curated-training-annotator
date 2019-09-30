@@ -86,14 +86,16 @@ class ExtractAnnotationStats {
                             // Get the username from the parent directory
                             // by finding the characters after the pattern "type.subtype-"
                             // e.g. Conflict.Attack-(gabbard)
-                            val user = Regex(pattern = """\.\w*-(\w*)""")
+                            val userPattern = Regex(pattern = """\.\w*-(\w*)""")
+                            val user = userPattern
                                     .find(input = folder)!!.groupValues[1]
                             // Get the event type from the parent directory
                             // by finding the characters before the pattern "-username"
                             // e.g. (Conflict.Attack)-gabbard
                             // Some directory names include an additional word or phrase (\w*?\.?)
                             // or a language indicator (w*?-?)
-                            val eventType = Regex(pattern = """(\w*?-?\w*?\.?\w*\.\w*)-""")
+                            val eventTypePattern = Regex(pattern = """(\w*?-?\w*?\.?\w*\.\w*)-""")
+                            val eventType = eventTypePattern
                                     .find(input = folder)!!.groupValues[1]
                             if (user.isBlank() || eventType.isBlank()) {
                                 throw RuntimeException(
@@ -119,7 +121,8 @@ class ExtractAnnotationStats {
             val jsonReports: MutableList<StatsReport> = mutableListOf()
             statsDir.walk().forEach {
                 if (it.name.endsWith(".json")) {
-                    val fileDate = Regex(pattern = """\d{4}-\d{2}-\d{2}""")
+                    val datePattern = Regex(pattern = """\d{4}-\d{2}-\d{2}""")
+                    val fileDate = datePattern
                             .find(input = it.name)?.value
                     if (fileDate != null) {
                         jsonReports.add(StatsReport(it, fileDate))
