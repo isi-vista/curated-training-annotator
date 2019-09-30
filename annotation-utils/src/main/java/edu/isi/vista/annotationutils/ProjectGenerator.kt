@@ -134,6 +134,7 @@ private fun loadOntologyInfo(params: Parameters): OntologyInfo {
             gather_events_sparql_query, model)
     val eventTypeNodes = queryExecution.use { execution ->
         val results = execution.execSelect()
+        //logger.debug {"Results: $results"}
         results.asSequence().map {
             it["subclass"].asResource()!!
         }.toSet()
@@ -178,14 +179,14 @@ private fun loadOntologyInfo(params: Parameters): OntologyInfo {
 }
 
 private val gather_events_sparql_query = QueryFactory.create("""
-    PREFIX aidaDomainCommon: <https://tac.nist.gov/tracks/SM-KBP/2018/ontologies/AidaDomainOntologiesCommon#>
+    PREFIX aidaDomainCommon: <https://tac.nist.gov/tracks/SM-KBP/2019/ontologies/AidaDomainOntologiesCommon#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
     SELECT * WHERE {?subclass rdfs:subClassOf+ aidaDomainCommon:EventType}
 """.trimIndent())
 
 private val gather_event_arguments_sparql_query = ParameterizedSparqlString("""
-    PREFIX aidaDomainCommon: <https://tac.nist.gov/tracks/SM-KBP/2018/ontologies/AidaDomainOntologiesCommon#>
+    PREFIX aidaDomainCommon: <https://tac.nist.gov/tracks/SM-KBP/2019/ontologies/AidaDomainOntologiesCommon#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
     SELECT * WHERE {
