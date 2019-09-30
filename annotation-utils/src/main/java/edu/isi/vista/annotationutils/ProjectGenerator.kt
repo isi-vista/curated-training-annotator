@@ -134,6 +134,7 @@ private fun loadOntologyInfo(params: Parameters): OntologyInfo {
             gather_events_sparql_query, model)
     val eventTypeNodes = queryExecution.use { execution ->
         val results = execution.execSelect()
+        //logger.debug {"Results: $results"}
         results.asSequence().map {
             it["subclass"].asResource()!!
         }.toSet()
