@@ -34,8 +34,7 @@ class ExtractAnnotationStats {
             val formatter = SimpleDateFormat("yyyy-MM-dd")
             val thisDate = formatter.format(currentDate.getTime())
 
-            val documentsWithEventAnnotations: MutableList<DocumentAnnotation> = arrayListOf()
-            collectStats(exportAnnotationRoot, documentsWithEventAnnotations)
+            val documentsWithEventAnnotations: MutableList<DocumentAnnotation> = collectStats(exportAnnotationRoot)
 
             // From documentsWithEventAnnotations, get TOTAL, TOTAL PER USER and TOTAL PER EVENT TYPE
             val totalAnnotations = documentsWithEventAnnotations.size
@@ -48,19 +47,19 @@ class ExtractAnnotationStats {
 
             // Load the annotation statistics from the last run
             val previousStatsReport: StatsReport? = locatePreviousStats(statisticsDirectory)
-            var previousAnnotationStats: AnnotationStats? = null
+            val previousAnnotationStats: AnnotationStats
             var annotationDiffs: AnnotationStats? = null
-            if (previousStatsReport == null) {
-                logger.info {"No previous report found. Numbers of new annotations will not be printed."}
-            }
-            else {
+            if (previousStatsReport != null) {
                 previousAnnotationStats = loadPreviousStats(previousStatsReport.report)
                 annotationDiffs = getDiffs(newAnnotationStats, previousAnnotationStats)
             }
+            else {
+                logger.info {"No previous report found. Numbers of new annotations will not be printed."}
+            }
+
             // Convert values to html
             val htmlStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.html"), thisDate)
             statsToHTML(htmlStatsReport, newAnnotationStats, previousStatsReport, annotationDiffs)
-
             // Convert values to json
             val jsonStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.json"), thisDate)
             statsToJSON(jsonStatsReport, newAnnotationStats)
@@ -71,7 +70,8 @@ class ExtractAnnotationStats {
          * each document that contains annotations.
          * Eventually we will want to count the actual number of annotations.
          */
-        fun collectStats(dir: File, docsList: MutableList<DocumentAnnotation>) {
+        fun collectStats(dir: File): MutableList<DocumentAnnotation> {
+            val docsList: MutableList<DocumentAnnotation> = mutableListOf<DocumentAnnotation>()
             dir.walk()
                     .filterNot {
                         it == dir ||
@@ -86,7 +86,7 @@ class ExtractAnnotationStats {
                             // Get the username from the parent directory
                             // by finding the characters after the pattern "type.subtype-"
                             // e.g. Conflict.Attack-(gabbard)
-                            val userPattern = Regex(pattern = """\.\w*-(\w*)""")
+                            val userPattern = Regex(pattern = """\.\w+-(\w+)""")
                             val user = userPattern
                                     .find(input = folder)!!.groupValues[1]
                             // Get the event type from the parent directory
@@ -94,9 +94,9 @@ class ExtractAnnotationStats {
                             // e.g. (Conflict.Attack)-gabbard
                             // Some directory names include an additional word or phrase (\w*?\.?)
                             // or a language indicator (w*?-?)
-                            val eventTypePattern = Regex(pattern = """(\w*?-?\w*?\.?\w*\.\w*)-""")
+                            val eventTypePattern = Regex(pattern = """\w+?-?\w+\.?\w+\.\w+""")
                             val eventType = eventTypePattern
-                                    .find(input = folder)!!.groupValues[1]
+                                    .find(input = folder)!!.value
                             if (user.isBlank() || eventType.isBlank()) {
                                 throw RuntimeException(
                                         "Missing annotation information (user/subtype) for $it")
@@ -111,6 +111,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+            return docsList
         }
 
         /**
@@ -118,26 +119,22 @@ class ExtractAnnotationStats {
          * the most recent file; else return null
          */
         fun locatePreviousStats(statsDir: File): StatsReport? {
-            val jsonReports: MutableList<StatsReport> = mutableListOf()
-            statsDir.walk().forEach {
-                if (it.name.endsWith(".json")) {
-                    val datePattern = Regex(pattern = """\d{4}-\d{2}-\d{2}""")
-                    val fileDate = datePattern
-                            .find(input = it.name)?.value
-                    if (fileDate != null) {
-                        jsonReports.add(StatsReport(it, fileDate))
-                    } else {
-                        logger.debug("No date found for JSON file ${it.name}")
+            return statsDir.walk().asSequence()
+                    .filter { it.name.endsWith(".json") }
+                    .map {
+                        val datePattern = Regex(pattern = """\d{4}-\d{2}-\d{2}""")
+                        val fileDate = datePattern
+                                .find(input = it.name)?.value
+                        if (fileDate != null) {
+                            StatsReport(it, fileDate)
+                        } else {
+                            logger.debug("No date found for JSON file ${it.name}")
+                            null
+                        }
                     }
-                }
-            }
-            return if (jsonReports.isEmpty()) {
-                // No previous JSON report found
-                null
-            } else {
-                val sortedJSON: List<StatsReport> = jsonReports.sortedBy {it.report.lastModified()}
-                sortedJSON.last()
-            }
+                    .filterNotNull()
+                    .sortedBy {it.report.lastModified()}
+                    .lastOrNull()
         }
 
         /**
@@ -154,16 +151,18 @@ class ExtractAnnotationStats {
          */
         fun getDiffs(newStats: AnnotationStats, previousStats: AnnotationStats): AnnotationStats {
             val totalDiff = newStats.total - previousStats.total
-            val userDiff: MutableMap<String, Int?> = mutableMapOf()
-            for (user in newStats.byUser.keys) {
-                if (previousStats.byUser[user] != null)
-                    userDiff[user] = previousStats.byUser[user]?.let { newStats.byUser[user]?.minus(it) }
-            }
-            val eventTypeDiff: MutableMap<String, Int?> = mutableMapOf()
-            for (eventType in newStats.byEventType.keys) {
-                if (previousStats.byEventType[eventType] != null)
-                    eventTypeDiff[eventType] = previousStats.byEventType[eventType]?.let { newStats.byEventType[eventType]?.minus(it) }
-            }
+            val userDiff = newStats.byUser
+                    .filterKeys { previousStats.byUser.containsKey(it) }
+                    .mapValues {
+                        (user, newCount) ->
+                        previousStats.byUser[user]?.let { newCount?.minus(it) }
+                    }
+            val eventTypeDiff = newStats.byEventType
+                    .filterKeys { previousStats.byEventType.containsKey(it) }
+                    .mapValues {
+                        (eventType, newCount) ->
+                        previousStats.byEventType[eventType]?.let {newCount?.minus(it) }
+                    }
 
             return AnnotationStats(totalDiff, userDiff, eventTypeDiff)
         }
