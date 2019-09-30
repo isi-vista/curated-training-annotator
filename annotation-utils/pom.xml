@@ -236,6 +236,19 @@
 			<artifactId>org.eclipse.jgit</artifactId>
 		</dependency>
 
+		<!-- for extracting statistics from text -->
+		<dependency>
+			<groupId>org.nield</groupId>
+			<artifactId>kotlin-statistics</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.jetbrains.kotlinx</groupId>
+			<artifactId>kotlinx-html-jvm</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+		</dependency>
 
 	</dependencies>
 

@@ -90,6 +90,11 @@ fun main(argv: Array<String>) {
         null
     }
 
+    val extractAnnotationStatsParamsBuilder = Parameters.builder()
+    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
+    val extractAnnotationStatsParams = exportAnnotationsParamsBuilder.build()
+
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
         // Run ExportAnnotations.kt
@@ -103,6 +108,10 @@ fun main(argv: Array<String>) {
         } else {
             logger.info { "Skipping RestoreJson" }
         }
+
+        // Get annotation statistics
+        logger.info { "Collecting annotation statistics"}
+        ExtractAnnotationStats.extractStats(extractAnnotationStatsParams)
 
         // Push new annotations
         pushUpdatedAnnotations(git)

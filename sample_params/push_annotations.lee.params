@@ -9,5 +9,7 @@ gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
 restoredJsonDirectory: /data/restored
 
+statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotation/data/annotation-statistics
+
 repoToPushTo: git@github.com:isi-vista/curated-training-annotation.git
 localWorkingCopyDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotation
