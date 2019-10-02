@@ -41,6 +41,8 @@ import java.util.*
  *         <li> `restoredJsonDirectory` is where the new json files will go </li>
  *       </ul>
  *     </li>
+ *     <li> `statisticsDirectory` is the directory where the annotation statistics reports
+ *     will be saved</li>
  *     <li> `repoToPushTo`: the ssh url of the repository to which the annotation data
  *     will be pushed; for ISI's curated training work, this is
  *     git@github.com:isi-vista/curated-training-annotation.git,
@@ -93,7 +95,7 @@ fun main(argv: Array<String>) {
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
     extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
-    val extractAnnotationStatsParams = exportAnnotationsParamsBuilder.build()
+    val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
