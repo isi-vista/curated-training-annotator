@@ -12,6 +12,7 @@ import org.eclipse.jgit.transport.*
 import org.eclipse.jgit.util.FS
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 /**
  * The goal of this program is to export the annotations, save the restored
@@ -43,6 +44,12 @@ import java.util.*
  *     </li>
  *     <li> `statisticsDirectory` is the directory where the annotation statistics reports
  *     will be saved</li>
+ *     <li> `annotatedFlexNLPOutputDir` is the directory where the annotated FlexNLP documents will be saved</li>
+ *     <li> `ingesterParametersDirectory` is where the parameters file for `curated_training_ingester.py` will
+ *     be saved</li>
+ *     <li> `pythonPath` is the path to the python interpreter that will be used to run
+ *     `curated_training_ingester.py`</li>
+ *     <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
  *     <li> `repoToPushTo`: the ssh url of the repository to which the annotation data
  *     will be pushed; for ISI's curated training work, this is
  *     git@github.com:isi-vista/curated-training-annotation.git,
@@ -74,6 +81,7 @@ fun main(argv: Array<String>) {
     val repoToPushTo = params.getString("repoToPushTo")
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
+    // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
     exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
@@ -81,6 +89,7 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
+    // Build params for restoring the original text
     val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
         Parameters.builder()
                 .set("indexDirectory", params.getString("indexDirectory"))
@@ -92,10 +101,25 @@ fun main(argv: Array<String>) {
         null
     }
 
+    // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
     extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
+
+    // Assemble params for converting the JSON to FlexNLP documents
+    val inputAnnotationJsonDir = File("$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    val annotatedFlexNLPOutputDir = File(params.getString("flexnlpDocumentDirectory"))
+    val ingesterParametersDir = File(params.getString("ingesterParametersDirectory"))
+    val ingesterParametersPath = "$ingesterParametersDir/curated_training_ingester_params.yaml"
+    val pythonPath = File(params.getString("pythonPath"))
+    val curatedTrainingIngesterPath = File(params.getString("curatedTrainingIngesterPath"))
+    File(ingesterParametersPath).bufferedWriter().use { out ->
+        out.write("input_annotation_json_dir: $inputAnnotationJsonDir\nannotated_flexnlp_output_dir: $annotatedFlexNLPOutputDir")
+    }
+    val execString = "$pythonPath" +
+            " $curatedTrainingIngesterPath" +
+            " $ingesterParametersPath"
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
@@ -114,6 +138,9 @@ fun main(argv: Array<String>) {
         // Get annotation statistics
         logger.info { "Collecting annotation statistics"}
         ExtractAnnotationStats.extractStats(extractAnnotationStatsParams)
+
+        // Get FlexNLP documents
+        execString.runCommand()
 
         // Push new annotations
         pushUpdatedAnnotations(git)
@@ -173,6 +200,20 @@ fun setUpRepository(localWorkingCopyDirectory: File, repoToPushTo: String): Git 
                 .setDirectory(localWorkingCopyDirectory)
                 .call()
     }
+}
+
+/**
+ * Run external command
+ *
+ * This is used to run `curated_training_ingester.py`.
+ * Source: https://stackoverflow.com/questions/35421699/how-to-invoke-external-command-from-within-kotlin-code
+ */
+fun String.runCommand() {
+    ProcessBuilder(*split(" ").toTypedArray())
+            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .start()
+            .waitFor(60, TimeUnit.MINUTES)
 }
 
 /**
