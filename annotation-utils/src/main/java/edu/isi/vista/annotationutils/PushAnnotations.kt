@@ -81,21 +81,23 @@ fun main(argv: Array<String>) {
     val repoToPushTo = params.getString("repoToPushTo")
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
+    val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot")
+
     // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
     exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
-    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", "$exportedAnnotationRoot")
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     // Build params for restoring the original text
     val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
         Parameters.builder()
-                .set("indexDirectory", params.getString("indexDirectory"))
-                .set("gigawordDataDirectory", params.getString("gigawordDataDirectory"))
-                .set("inputJsonDirectory", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-                .set("restoredJsonDirectory", "$localWorkingCopyDirectory" + params.getString("restoredJsonDirectory"))
+                .set("indexDirectory", "${params.getExistingDirectory("indexDirectory")}")
+                .set("gigawordDataDirectory", "${params.getExistingDirectory("gigawordDataDirectory")}")
+                .set("inputJsonDirectory", "$exportedAnnotationRoot")
+                .set("restoredJsonDirectory", "${params.getCreatableDirectory("restoredJsonDirectory")}")
                 .build()
     } else {
         null
@@ -103,23 +105,27 @@ fun main(argv: Array<String>) {
 
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
-    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
+    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$exportedAnnotationRoot")
+    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", "${params.getCreatableDirectory("statisticsDirectory")}")
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
 
     // Assemble params for converting the JSON to FlexNLP documents
-    val inputAnnotationJsonDir = File("$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-    val annotatedFlexNLPOutputDir = File(params.getString("flexnlpDocumentDirectory"))
-    val ingesterParametersDir = File(params.getString("ingesterParametersDirectory"))
-    val ingesterParametersPath = "$ingesterParametersDir/curated_training_ingester_params.yaml"
-    val pythonPath = File(params.getString("pythonPath"))
-    val curatedTrainingIngesterPath = File(params.getString("curatedTrainingIngesterPath"))
-    File(ingesterParametersPath).bufferedWriter().use { out ->
-        out.write("input_annotation_json_dir: $inputAnnotationJsonDir\nannotated_flexnlp_output_dir: $annotatedFlexNLPOutputDir")
+    val curatedTrainingIngesterParamsBuilder = Parameters.builder()
+    curatedTrainingIngesterParamsBuilder.set("input_annotation_json_dir", "$exportedAnnotationRoot")
+    curatedTrainingIngesterParamsBuilder.set("annotated_flexnlp_output_dir", "${params.getCreatableDirectory("annotatedFlexNLPOutputDir")}")
+    val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
+    val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
+            .toPath()
+            .resolve("curated_training_ingester_params.yaml")
+            .toFile()
+    val pythonPath = params.getExistingDirectory("pythonPath")
+    val curatedTrainingIngesterPath = params.getExistingFile("curatedTrainingIngesterPath")
+    ingesterParametersDir.bufferedWriter().use { out ->
+        out.write(curatedTrainingIngesterParams.dump())
     }
     val execString = "$pythonPath" +
             " $curatedTrainingIngesterPath" +
-            " $ingesterParametersPath"
+            " $ingesterParametersDir"
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 

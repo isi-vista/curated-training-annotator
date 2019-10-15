@@ -2,12 +2,12 @@ inceptionUrl: http://curatedtraining.isi.edu:8080
 inceptionUsername: remote_admin
 # password is expected to be specified in an environmental variable
 inceptionPassword: %INCEPTION_PASSWORD%
-exportedAnnotationRoot: /data/exported
+exportedAnnotationRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/exported
 
 restoreJson: false
 gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
-restoredJsonDirectory: /data/restored
+restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/restored
 
 statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/annotation-statistics
 
