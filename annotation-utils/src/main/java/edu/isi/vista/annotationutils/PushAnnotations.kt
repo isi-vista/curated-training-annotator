@@ -81,14 +81,14 @@ fun main(argv: Array<String>) {
     val repoToPushTo = params.getString("repoToPushTo")
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
-    val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot")
+    val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").absolutePath
 
     // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
     exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
-    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot.absolutePath)
+    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     // Build params for restoring the original text
@@ -96,7 +96,7 @@ fun main(argv: Array<String>) {
         Parameters.builder()
                 .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
-                .set("inputJsonDirectory", exportedAnnotationRoot.absolutePath)
+                .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
                 .build()
     } else {
@@ -105,13 +105,13 @@ fun main(argv: Array<String>) {
 
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
-    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot.absolutePath)
+    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath)
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
 
     // Assemble params for converting the JSON to FlexNLP documents
     val curatedTrainingIngesterParamsBuilder = Parameters.builder()
-    curatedTrainingIngesterParamsBuilder.set("input_annotation_json_dir", exportedAnnotationRoot.absolutePath)
+    curatedTrainingIngesterParamsBuilder.set("input_annotation_json_dir", exportedAnnotationRoot)
     curatedTrainingIngesterParamsBuilder.set("annotated_flexnlp_output_dir", params.getCreatableDirectory("annotatedFlexNLPOutputDir").absolutePath)
     val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
     val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
