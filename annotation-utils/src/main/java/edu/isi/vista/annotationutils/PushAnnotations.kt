@@ -118,7 +118,7 @@ fun main(argv: Array<String>) {
             .toPath()
             .resolve("curated_training_ingester_params.yaml")
             .toFile()
-    val pythonPath = params.getExistingDirectory("pythonPath")
+    val pythonPath = params.getExistingFile("pythonPath")
     val curatedTrainingIngesterPath = params.getExistingFile("curatedTrainingIngesterPath")
     ingesterParametersDir.bufferedWriter().use { out ->
         out.write(curatedTrainingIngesterParams.dump())
