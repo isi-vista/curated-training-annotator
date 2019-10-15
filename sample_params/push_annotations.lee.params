@@ -2,14 +2,19 @@ inceptionUrl: http://curatedtraining.isi.edu:8080
 inceptionUsername: remote_admin
 # password is expected to be specified in an environmental variable
 inceptionPassword: %INCEPTION_PASSWORD%
-exportedAnnotationRoot: /data/exported
+exportedAnnotationRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/exported
 
 restoreJson: false
 gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
-restoredJsonDirectory: /data/restored
+restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/restored
 
-statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotation/data/annotation-statistics
+statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/annotation-statistics
 
-repoToPushTo: git@github.com:isi-vista/curated-training-annotation.git
-localWorkingCopyDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotation
+annotatedFlexNLPOutputDir: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/flexnlp_pickled
+ingesterParametersDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining
+pythonPath: /Users/isiboston/miniconda3/envs/gaia/bin/python
+curatedTrainingIngesterPath: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/gaia-event-extraction/gaia_event_extraction/ingesters/curated_training_ingester.py
+
+repoToPushTo: git@github.com:isi-vista/curated-training-vistanlp.git
+localWorkingCopyDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp

@@ -12,6 +12,7 @@ import org.eclipse.jgit.transport.*
 import org.eclipse.jgit.util.FS
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 /**
  * The goal of this program is to export the annotations, save the restored
@@ -43,6 +44,12 @@ import java.util.*
  *     </li>
  *     <li> `statisticsDirectory` is the directory where the annotation statistics reports
  *     will be saved</li>
+ *     <li> `annotatedFlexNLPOutputDir` is the directory where the annotated FlexNLP documents will be saved</li>
+ *     <li> `ingesterParametersDirectory` is where the parameters file for `curated_training_ingester.py` will
+ *     be saved</li>
+ *     <li> `pythonPath` is the path to the python interpreter that will be used to run
+ *     `curated_training_ingester.py`</li>
+ *     <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
  *     <li> `repoToPushTo`: the ssh url of the repository to which the annotation data
  *     will be pushed; for ISI's curated training work, this is
  *     git@github.com:isi-vista/curated-training-annotation.git,
@@ -74,28 +81,51 @@ fun main(argv: Array<String>) {
     val repoToPushTo = params.getString("repoToPushTo")
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
+    val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").absolutePath
+
+    // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
     exportAnnotationsParamsBuilder.set("inceptionUrl", params.getString("inceptionUrl"))
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
-    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot","$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
+    exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
+    // Build params for restoring the original text
     val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
         Parameters.builder()
-                .set("indexDirectory", params.getString("indexDirectory"))
-                .set("gigawordDataDirectory", params.getString("gigawordDataDirectory"))
-                .set("inputJsonDirectory", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-                .set("restoredJsonDirectory", "$localWorkingCopyDirectory" + params.getString("restoredJsonDirectory"))
+                .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
+                .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
+                .set("inputJsonDirectory", exportedAnnotationRoot)
+                .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
                 .build()
     } else {
         null
     }
 
+    // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
-    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", "$localWorkingCopyDirectory" + params.getString("exportedAnnotationRoot"))
-    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getString("statisticsDirectory"))
+    extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
+    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath)
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
+
+    // Assemble params for converting the JSON to FlexNLP documents
+    val curatedTrainingIngesterParamsBuilder = Parameters.builder()
+    curatedTrainingIngesterParamsBuilder.set("input_annotation_json_dir", exportedAnnotationRoot)
+    curatedTrainingIngesterParamsBuilder.set("annotated_flexnlp_output_dir", params.getCreatableDirectory("annotatedFlexNLPOutputDir").absolutePath)
+    val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
+    val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
+            .toPath()
+            .resolve("curated_training_ingester_params.yaml")
+            .toFile()
+    val pythonPath = params.getExistingFile("pythonPath")
+    val curatedTrainingIngesterPath = params.getExistingFile("curatedTrainingIngesterPath")
+    ingesterParametersDir.bufferedWriter().use { out ->
+        out.write(curatedTrainingIngesterParams.dump())
+    }
+    val execString = "$pythonPath" +
+            " $curatedTrainingIngesterPath" +
+            " $ingesterParametersDir"
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
@@ -114,6 +144,9 @@ fun main(argv: Array<String>) {
         // Get annotation statistics
         logger.info { "Collecting annotation statistics"}
         ExtractAnnotationStats.extractStats(extractAnnotationStatsParams)
+
+        // Get FlexNLP documents
+        execString.runCommand()
 
         // Push new annotations
         pushUpdatedAnnotations(git)
@@ -173,6 +206,20 @@ fun setUpRepository(localWorkingCopyDirectory: File, repoToPushTo: String): Git 
                 .setDirectory(localWorkingCopyDirectory)
                 .call()
     }
+}
+
+/**
+ * Run external command
+ *
+ * This is used to run `curated_training_ingester.py`.
+ * Source: https://stackoverflow.com/questions/35421699/how-to-invoke-external-command-from-within-kotlin-code
+ */
+fun String.runCommand() {
+    ProcessBuilder(*split(" ").toTypedArray())
+            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .redirectError(ProcessBuilder.Redirect.INHERIT)
+            .start()
+            .waitFor(60, TimeUnit.MINUTES)
 }
 
 /**
