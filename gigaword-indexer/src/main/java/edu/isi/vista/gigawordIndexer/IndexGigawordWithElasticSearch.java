@@ -40,6 +40,7 @@ public class IndexGigawordWithElasticSearch {
           "\tcorpusDirectoryPath: the path to a directory where corpus (i.e. LDC2011T07 English Gigaword 5th edition)\n" +
           "\t\thas been extracted. \n" +
           "\tformat: LTF, annotated_gigaword or gigaword" +
+          "\tcompressed: true if the gigaword documents are expected to be compressed, false otherwise" +
           "\tthreshold: a number between 0 and 1 indicating the percentage of failed indexing doc before terminating program\n" +
           "Additional parameters can be used to point to an Elastic Search server running somewhere besides the " +
           "standard ports on localhost. For these, please see the source code.";
@@ -56,6 +57,8 @@ public class IndexGigawordWithElasticSearch {
   private static final String PARAM_CORPUS_DIRECTORY_PATH = "corpusDirectoryPath";
 
   private static final String PARAM_FORMAT = "format";
+
+  private static final String PARAM_COMPRESSED = "compressed";
 
   private static final String PARAM_LANGUAGE = "lang";
 
@@ -104,6 +107,7 @@ public class IndexGigawordWithElasticSearch {
     try (RestHighLevelClient client = buildElasticSearchClient(parameters)) {
       final String indexName = parameters.getString(PARAM_INDEX_NAME);
       final String format = parameters.getString(PARAM_FORMAT);
+      final boolean compressed = parameters.getOptionalBoolean(PARAM_COMPRESSED).or(true);
       final String lang = parameters.getOptionalString(PARAM_LANGUAGE).or("EN");
       final double fractionDocAllowToFail =
           Double.parseDouble(parameters.getOptionalString(PARAM_FRACTIOIN_DOCS_ALLOWED_TO_FAIL)
@@ -117,6 +121,8 @@ public class IndexGigawordWithElasticSearch {
       PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
+      } else if (!compressed){
+        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/**");
       } else {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
@@ -129,9 +135,9 @@ public class IndexGigawordWithElasticSearch {
             // we use allMatch because the inner code will return a boolean indicating whether to
             // continue
             .allMatch(
-                gzippedConcatenatedFile -> {
-                    try (ArticleSource articleSource = getArticleSource(format,
-                            gzippedConcatenatedFile)) {
+                concatenatedFile -> {
+                    try (ArticleSource articleSource = getArticleSource(format, compressed,
+                            concatenatedFile)) {
                       // we batch the documents in groups of 100 so we can get the efficiency gains
                       // from batching without making huge requests of unbounded size
                       final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
@@ -158,16 +164,20 @@ public class IndexGigawordWithElasticSearch {
     }
   }
 
-  private static ArticleSource getArticleSource(String format,
-          Path gzippedConcatenatedFile) throws Exception
+  private static ArticleSource getArticleSource(String format, boolean compressed,
+          Path concatenatedFile) throws Exception
   {
     if (format.equalsIgnoreCase("ltf")) {
-      return LTFDocuments.fromLTFZippedFile(gzippedConcatenatedFile);
+      return LTFDocuments.fromLTFZippedFile(concatenatedFile);
     } else if (format.equalsIgnoreCase("annotated_gigaword")) {
       log.warn("Indexing an annotated version of Gigaword.");
-      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(gzippedConcatenatedFile);
+      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(concatenatedFile);
     } else if (format.equalsIgnoreCase("gigaword")) {
-      return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(gzippedConcatenatedFile);
+        if (compressed) {
+          return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(concatenatedFile);
+        } else {
+          return ConcatenatedGigawordDocuments.fromGigawordFile(concatenatedFile);
+        }
     } else {
       throw new RuntimeException("Unknown input for parameter format. " +
               "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");

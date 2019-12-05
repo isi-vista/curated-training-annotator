@@ -5,6 +5,7 @@ import edu.isi.nlp.io.GZIPByteSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Objects;
@@ -26,6 +27,10 @@ public class ConcatenatedGigawordDocuments implements ArticleSource {
   public static ConcatenatedGigawordDocuments fromGigwordGZippedFile(Path p) throws IOException {
     return new ConcatenatedGigawordDocuments(GZIPByteSource.fromCompressed(p.toFile())
             .asCharSource(StandardCharsets.UTF_8).read());
+  }
+
+  public static ConcatenatedGigawordDocuments fromGigawordFile(Path p) throws  IOException {
+    return new ConcatenatedGigawordDocuments(new String(Files.readAllBytes(p)));
   }
 
   public Iterator<Article> iterator() {
