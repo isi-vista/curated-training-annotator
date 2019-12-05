@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -122,10 +121,10 @@ public class IndexGigawordWithElasticSearch {
       PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
-      } else if (compressed){
-        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
-      } else {
+      } else if (!compressed){
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/**");
+      } else {
+        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
 
 
