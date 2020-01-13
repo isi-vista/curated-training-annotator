@@ -4,9 +4,10 @@ SMTPTO=curatedtraining@isi.edu
 SERVERURL=curatedtraining.isi.edu
 REPOURL=git@github.com:isi-vista/curated-training-annotation
 THISDATE=$(date +"%Y-%m-%d")
-STATSFILE="~/projects/gaia/repos/curated-training-annotation/data/annotation-statistics/StatsReport$THISDATE.html"
+STATSFILE="repos/curated-training-annotation/data/annotation-statistics/StatsReport$THISDATE.html"
 
 sh ~/projects/gaia/repos/curated-training-annotator/annotation-utils/target/appassembler/bin/pushAnnotations "push_annotations.curatedtraining.params" > export-and-push.log 2>&1
+
 grep 'ERROR\|Exception' -a export-and-push.log > export-and-push.error.log
 
 if [ -s export-and-push.error.log ]; then
@@ -20,4 +21,4 @@ else
   tail -n 10 export-and-push.log >> export-and-push.error.log
 fi
 
-cat export-and-push.error.log | mailx -s "$RESULT: Curated Training Upload from $SERVERURL to $REPOURL" $SMTPTO
+mutt -e "set content_type=text/html" -s "$RESULT: Curated Training Upload from $SERVERURL to $REPOURL" $SMTPTO < export-and-push.error.log
