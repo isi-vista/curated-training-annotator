@@ -8,21 +8,30 @@ tar xvzf gigaword_eng_5_LDC2011T07.tgz
 
 ### Install ElasticSearch and start the service
 1. Upload package of Elasticsearch to /lfs1/ElasticSearch/
-```
-cd /lfs1/ElasticSearch/
-wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.6.1.tar.gz
-```
+    ```
+    cd /lfs1/ElasticSearch/
+    wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.6.1.tar.gz
+    ```
 
 2. Unpack the software and start the service:
-```
-tar xvzf elasticsearch-6.6.1.tar.gz
-bash ./elasticsearch-6.6.1/bin/elasticsearch
-```
+    ```
+    tar xvzf elasticsearch-6.6.1.tar.gz
+    ```
 
-3. Check service status:
-``` 
-curl -X GET http://localhost:9200
-```
+    On CentOS, the following content needs to be in the file /etc/sysctl.d/90-elastic-search.conf:
+    ```
+    vm.max_map_count=262144
+    ```
+
+3. Start the service:
+    ```
+    bash ./elasticsearch-6.6.1/bin/elasticsearch
+    ```
+
+4. Check service status:
+    ``` 
+    curl -X GET http://localhost:9200
+    ```
    
  It will show the elastic version and other information of the installation.
 
