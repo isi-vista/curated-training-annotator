@@ -33,7 +33,6 @@ import java.util.stream.Stream;
  * annotator.
  */
 public class IndexAceWithElasticSearch {
-    //TODO: Modify these completely:
     private static final String USAGE = "IndexAceWithElasticSearch param_file\n" +
             "\tparam file consists of :-separated key-value pairs\n" +
             "\tThe required parameters are:\n" +
@@ -58,8 +57,6 @@ public class IndexAceWithElasticSearch {
 
     private static final String PARAM_FORMAT = "format";
 
-    // Still Needed? since the ACE corpus comes as a single .tgz containing all the documents
-    //  organized in various directories (max depth is 5).
     private static final String PARAM_COMPRESSED = "compressed";
 
     // NOTE: Languages subdirectories are inside the data directory

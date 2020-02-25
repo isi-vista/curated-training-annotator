@@ -1,5 +1,6 @@
 package edu.isi.vista.gigawordIndexer;
 
+import com.google.common.collect.Lists;
 import edu.isi.nlp.parameters.Parameters;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -22,6 +23,9 @@ import java.nio.file.PathMatcher;
 import java.util.Date;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.partition;
@@ -121,6 +125,23 @@ public class IndexGigawordWithElasticSearch {
       PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
+      } else if (format.equalsIgnoreCase("ace")){
+        // Source files (unannotated) are in the .sgm format
+        // Only checks each adj subdirectory to avoid duplicate source files
+        // (as fp1, fp2 and timex2 use the same source files)
+        if (lang.equalsIgnoreCase("english")) {
+          filePattern = FileSystems.getDefault()
+                  .getPathMatcher("glob:**/English/**/adj/*.sgm");
+        } else if (lang.equalsIgnoreCase("chinese")){
+          filePattern = FileSystems.getDefault()
+                  .getPathMatcher("glob:**/Chinese/**/adj/*.sgm");
+        } else if (lang.equalsIgnoreCase("arabic")) {
+          filePattern = FileSystems.getDefault()
+                  .getPathMatcher("glob:**/Arabic/**/adj/*.sgm");
+        } else {
+          throw new RuntimeException("The ACE corpus does not contain files of the " +
+                  "specified language");
+        }
       } else if (!compressed){
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/**");
       } else {
@@ -128,33 +149,50 @@ public class IndexGigawordWithElasticSearch {
       }
 
 
-      try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
-        //noinspection ResultOfMethodCallIgnored
-        corpusFiles
-            .filter(filePattern::matches)
-            // we use allMatch because the inner code will return a boolean indicating whether to
-            // continue
-            .allMatch(
-                concatenatedFile -> {
-                    try (ArticleSource articleSource = getArticleSource(format, compressed,
-                            concatenatedFile)) {
-                      // we batch the documents in groups of 100 so we can get the efficiency gains
-                      // from batching without making huge requests of unbounded size
-                      final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
+      if (format.equalsIgnoreCase("ace")) {
+        try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+          //noinspection ResultOfMethodCallIgnored
+          corpusFiles
+              .filter(filePattern::matches)
+              // we use allMatch because the inner code will return a boolean indicating whether to
+              // continue
+              .allMatch(
+                  concatenatedFile -> {
+                      try (ArticleSource articleSource = getArticleSource(format, compressed,
+                              concatenatedFile)) {
+                        // we batch the documents in groups of 100 so we can get the efficiency gains
+                        // from batching without making huge requests of unbounded size
+                        final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
 
-                      boolean shouldContinue = index(client, batchedArticles, indexName, lang,
-                              fractionDocAllowToFail, sentenceLimit);
-                      if (!shouldContinue) {
-                        log.info(
-                                "Indexing terminated early without error, probably due to the user "
-                                        + "requesting a limit on the number of documents indexed");
-                        return false;
-                      }
-                  } catch (Exception e) {
-                    throw new RuntimeException(e);
-                  }
-                  return true;
-                });
+                        boolean shouldContinue = index(client, batchedArticles, indexName, lang,
+                                fractionDocAllowToFail, sentenceLimit);
+                        if (!shouldContinue) {
+                          log.info(
+                                  "Indexing terminated early without error, probably due to the user "
+                                          + "requesting a limit on the number of documents indexed");
+                          return false;
+                        }
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                    return true;
+                  });
+        }
+      } else {
+        try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+          List<Path> corpusFilesList = corpusFiles.filter(filePattern::matches).collect(Collectors.toList());
+          final Iterable<List<Path>> batchedArticlePaths = Lists.partition(corpusFilesList,
+                  BATCH_SIZE);
+          boolean shouldContinue = indexAce(client, batchedArticlePaths, indexName, lang,
+                  fractionDocAllowToFail, sentenceLimit);
+          if (!shouldContinue) {
+            log.info(
+                    "Indexing terminated early without error, probably due to the user "
+                            + "requesting a limit on the number of documents indexed");
+          }
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
       }
 
       log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
@@ -249,6 +287,55 @@ public class IndexGigawordWithElasticSearch {
   }
 
   /**
+   * FOR ACE:
+   * Indexes the documents at the provided Paths.
+   *
+   * Returns whether or not the indexing process should continue.
+   */
+  private static boolean indexAce(
+          RestHighLevelClient client,
+          Iterable<List<Path>> iterator,
+          String indexName,
+          String lang,
+          double fractionDocAllowToFail,
+          int sentenceLimit) throws IOException {
+
+    for (List<Path> articlePaths : iterator) {
+      final BulkRequest bulkRequest = new BulkRequest();
+      for (Path articlePath : articlePaths) {
+        Article article = articleFromPath(articlePath);
+        if (article.failed()) { // error occurred
+          indexFailed += 1;
+          if ((double)indexFailed/(double)(totalDoc) > fractionDocAllowToFail) {
+            throw new RuntimeException("Failed documents exceeded threshold");
+          }
+        } else if (article.getSegments() > sentenceLimit) {
+          indexFailed += 1;
+          log.warn("Document not indexed because it exceeded the size limit of {}: {}, {}",
+                  sentenceLimit , article.getSegments(), article.getId());
+        } else {
+          XContentBuilder sourceBuilder =
+                  buildSourceObject(article, lang, "", new Date().toString(), "");
+          bulkRequest.add(
+                  new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
+        }
+        totalDoc += 1;
+      }
+      if (bulkRequest.numberOfActions() > 0) {
+        BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+        if (bulkResponse.hasFailures()) {
+          throw new RuntimeException(bulkResponse.buildFailureMessage());
+        }
+      }
+
+      if (maxDocumentsToIndex.isPresent() && totalDoc >= maxDocumentsToIndex.getAsInt()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * The source format is according to Inception's ElasticSearch-based external search.
    *
    * <p>_source : { doc : { text : {} }, metadata : { id : {}, language : {}, source : {}, timestamp
@@ -274,5 +361,21 @@ public class IndexGigawordWithElasticSearch {
         .field("uri", uri)
         .endObject()
         .endObject();
+  }
+  private static Article articleFromPath(Path filePath) throws IOException{
+
+    String docString = new String(Files.readAllBytes(filePath));
+    // DOC ID marker
+    Pattern ACE_DOC_ID_PATTERN = Pattern.compile("<DOCID> (.*?) <.DOCID>");
+
+    Matcher m =
+            ACE_DOC_ID_PATTERN.matcher(
+                    docString.substring(0, Math.min(120, docString.length())));
+    if (m.find()) {
+      String docId = m.group(1);
+      return new Article(docId, docString);
+    } else {
+      throw new RuntimeException("Missing document ID on article");
+    }
   }
 }
