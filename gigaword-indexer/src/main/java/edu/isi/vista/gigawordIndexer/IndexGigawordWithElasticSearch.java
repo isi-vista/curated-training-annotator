@@ -149,51 +149,34 @@ public class IndexGigawordWithElasticSearch {
       }
 
 
-      if (format.equalsIgnoreCase("ace")) {
-        try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
-          //noinspection ResultOfMethodCallIgnored
-          corpusFiles
-              .filter(filePattern::matches)
-              // we use allMatch because the inner code will return a boolean indicating whether to
-              // continue
-              .allMatch(
-                  concatenatedFile -> {
-                      try (ArticleSource articleSource = getArticleSource(format, compressed,
-                              concatenatedFile)) {
-                        // we batch the documents in groups of 100 so we can get the efficiency gains
-                        // from batching without making huge requests of unbounded size
-                        final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
+      try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
+        //noinspection ResultOfMethodCallIgnored
+        corpusFiles
+            .filter(filePattern::matches)
+            // we use allMatch because the inner code will return a boolean indicating whether to
+            // continue
+            .allMatch(
+                concatenatedFile -> {
+                    try (ArticleSource articleSource = getArticleSource(format, compressed,
+                            concatenatedFile)) {
+                      // we batch the documents in groups of 100 so we can get the efficiency gains
+                      // from batching without making huge requests of unbounded size
+                      final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
 
-                        boolean shouldContinue = index(client, batchedArticles, indexName, lang,
-                                fractionDocAllowToFail, sentenceLimit);
-                        if (!shouldContinue) {
-                          log.info(
-                                  "Indexing terminated early without error, probably due to the user "
-                                          + "requesting a limit on the number of documents indexed");
-                          return false;
-                        }
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                    return true;
-                  });
+                      boolean shouldContinue = index(client, batchedArticles, indexName, lang,
+                              fractionDocAllowToFail, sentenceLimit);
+                      if (!shouldContinue) {
+                        log.info(
+                                "Indexing terminated early without error, probably due to the user "
+                                        + "requesting a limit on the number of documents indexed");
+                        return false;
+                      }
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                  return true;
+                });
         }
-      } else {
-        try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
-          List<Path> corpusFilesList = corpusFiles.filter(filePattern::matches).collect(Collectors.toList());
-          final Iterable<List<Path>> batchedArticlePaths = Lists.partition(corpusFilesList,
-                  BATCH_SIZE);
-          boolean shouldContinue = indexAce(client, batchedArticlePaths, indexName, lang,
-                  fractionDocAllowToFail, sentenceLimit);
-          if (!shouldContinue) {
-            log.info(
-                    "Indexing terminated early without error, probably due to the user "
-                            + "requesting a limit on the number of documents indexed");
-          }
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
 
       log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
     } catch (Exception e) {
@@ -203,22 +186,24 @@ public class IndexGigawordWithElasticSearch {
   }
 
   private static ArticleSource getArticleSource(String format, boolean compressed,
-          Path concatenatedFile) throws Exception
+          Path sourceFile) throws Exception
   {
-    if (format.equalsIgnoreCase("ltf")) {
-      return LTFDocuments.fromLTFZippedFile(concatenatedFile);
+    if (format.equalsIgnoreCase("ace")) {
+      return AceDocument.AceDocumentFromPath(sourceFile);
+    } else if (format.equalsIgnoreCase("ltf")) {
+      return LTFDocuments.fromLTFZippedFile(sourceFile);
     } else if (format.equalsIgnoreCase("annotated_gigaword")) {
       log.warn("Indexing an annotated version of Gigaword.");
-      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(concatenatedFile);
+      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(sourceFile);
     } else if (format.equalsIgnoreCase("gigaword")) {
         if (compressed) {
-          return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(concatenatedFile);
+          return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(sourceFile);
         } else {
-          return ConcatenatedGigawordDocuments.fromGigawordFile(concatenatedFile);
+          return ConcatenatedGigawordDocuments.fromGigawordFile(sourceFile);
         }
     } else {
       throw new RuntimeException("Unknown input for parameter format. " +
-              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
+              "Possible values are \"ace\", \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
     }
   }
 
@@ -286,54 +271,6 @@ public class IndexGigawordWithElasticSearch {
     return true;
   }
 
-  /**
-   * FOR ACE:
-   * Indexes the documents at the provided Paths.
-   *
-   * Returns whether or not the indexing process should continue.
-   */
-  private static boolean indexAce(
-          RestHighLevelClient client,
-          Iterable<List<Path>> iterator,
-          String indexName,
-          String lang,
-          double fractionDocAllowToFail,
-          int sentenceLimit) throws IOException {
-
-    for (List<Path> articlePaths : iterator) {
-      final BulkRequest bulkRequest = new BulkRequest();
-      for (Path articlePath : articlePaths) {
-        Article article = articleFromPath(articlePath);
-        if (article.failed()) { // error occurred
-          indexFailed += 1;
-          if ((double)indexFailed/(double)(totalDoc) > fractionDocAllowToFail) {
-            throw new RuntimeException("Failed documents exceeded threshold");
-          }
-        } else if (article.getSegments() > sentenceLimit) {
-          indexFailed += 1;
-          log.warn("Document not indexed because it exceeded the size limit of {}: {}, {}",
-                  sentenceLimit , article.getSegments(), article.getId());
-        } else {
-          XContentBuilder sourceBuilder =
-                  buildSourceObject(article, lang, "", new Date().toString(), "");
-          bulkRequest.add(
-                  new IndexRequest(indexName, "texts", article.getId()).source(sourceBuilder));
-        }
-        totalDoc += 1;
-      }
-      if (bulkRequest.numberOfActions() > 0) {
-        BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
-        if (bulkResponse.hasFailures()) {
-          throw new RuntimeException(bulkResponse.buildFailureMessage());
-        }
-      }
-
-      if (maxDocumentsToIndex.isPresent() && totalDoc >= maxDocumentsToIndex.getAsInt()) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   /**
    * The source format is according to Inception's ElasticSearch-based external search.
@@ -361,21 +298,5 @@ public class IndexGigawordWithElasticSearch {
         .field("uri", uri)
         .endObject()
         .endObject();
-  }
-  private static Article articleFromPath(Path filePath) throws IOException{
-
-    String docString = new String(Files.readAllBytes(filePath));
-    // DOC ID marker
-    Pattern ACE_DOC_ID_PATTERN = Pattern.compile("<DOCID> (.*?) <.DOCID>");
-
-    Matcher m =
-            ACE_DOC_ID_PATTERN.matcher(
-                    docString.substring(0, Math.min(120, docString.length())));
-    if (m.find()) {
-      String docId = m.group(1);
-      return new Article(docId, docString);
-    } else {
-      throw new RuntimeException("Missing document ID on article");
-    }
   }
 }
