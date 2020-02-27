@@ -149,7 +149,7 @@ public class IndexGigawordWithElasticSearch {
       }
 
 
-      if (format.equalsIgnoreCase("ace")) {
+      if (!format.equalsIgnoreCase("ace")) {
         try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
           //noinspection ResultOfMethodCallIgnored
           corpusFiles
