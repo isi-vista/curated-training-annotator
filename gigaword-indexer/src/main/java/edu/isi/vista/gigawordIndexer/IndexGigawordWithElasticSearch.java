@@ -148,7 +148,6 @@ public class IndexGigawordWithElasticSearch {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
       }
 
-
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
         //noinspection ResultOfMethodCallIgnored
         corpusFiles
