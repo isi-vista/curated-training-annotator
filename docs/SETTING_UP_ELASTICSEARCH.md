@@ -1,9 +1,17 @@
 ### Upload Dataset for index
+#### Gigaword Corpus:
 1. Upload English Gigaword V5 (catalog_id: LDC2011T07) to `/lfs1/eng.gigaword.v5/`
 2. Unpack the dataset:
 ```
 cd /lfs1/eng.gigaword.v5/
 tar xvzf gigaword_eng_5_LDC2011T07.tgz
+```
+#### ACE Corpus:
+1. Upload ACE_Corpus (2005) (catalog_id: LDC2006T06) to `/lfs1/`
+2. Unpack the dataset:
+```
+cd /lfs1/
+tar xvzf ace_2005_td_v7_LDC2006T06.tgz
 ```
 
 ### Install ElasticSearch and start the service
@@ -53,9 +61,18 @@ mvn clean install
 
 ### English Gigaword V5 Indexing
 In the build of `gigaword-indexer`, create a parameter file `index_gigaword.english.params` which has following parameters:
+
+####For Gigaword
 ```
 indexName: gigaword
 gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
+```
+For ACE
+```
+indexName: ace
+format: ace
+lang: english
+corpusDirectoryPath: /lfs1/ace_2005_td_v7
 ```
 
 Then, run:
