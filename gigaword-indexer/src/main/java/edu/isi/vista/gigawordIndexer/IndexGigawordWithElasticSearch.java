@@ -1,5 +1,6 @@
 package edu.isi.vista.gigawordIndexer;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import edu.isi.nlp.parameters.Parameters;
 import org.apache.http.HttpHost;
@@ -94,6 +95,11 @@ public class IndexGigawordWithElasticSearch {
 
   private static final int BATCH_SIZE = 100;
 
+  private static final ImmutableMap<String, String> languageToAceDirectoryName = ImmutableMap.of(
+          "english", "English",
+          "chinese", "Chinese",
+          "arabic", "Arabic");
+
   // make error-prone not complain about the use of allMatch below
   @SuppressWarnings("ReturnValueIgnored")
   public static void main(String[] argv) throws IOException {
@@ -122,30 +128,28 @@ public class IndexGigawordWithElasticSearch {
         maxDocumentsToIndex = OptionalInt.of(
                 parameters.getPositiveInteger(MAX_DOCS_TO_PROCESS_PARAM));
       }
-      PathMatcher filePattern;
+
+      final PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
-      } else if (format.equalsIgnoreCase("ace")){
+      } else if (format.equalsIgnoreCase("ace")) {
         // Source files (unannotated) are in the .sgm format
         // Only checks each adj subdirectory to avoid duplicate source files
         // (as fp1, fp2 and timex2 use the same source files)
-        if (lang.equalsIgnoreCase("english")) {
-          filePattern = FileSystems.getDefault()
-                  .getPathMatcher("glob:**/English/**/adj/*.sgm");
-        } else if (lang.equalsIgnoreCase("chinese")){
-          filePattern = FileSystems.getDefault()
-                  .getPathMatcher("glob:**/Chinese/**/adj/*.sgm");
-        } else if (lang.equalsIgnoreCase("arabic")) {
-          filePattern = FileSystems.getDefault()
-                  .getPathMatcher("glob:**/Arabic/**/adj/*.sgm");
-        } else {
+        final String aceDirectoryName = languageToAceDirectoryName.get(lang.toLowerCase());
+        if (aceDirectoryName == null) {
           throw new RuntimeException("The ACE corpus does not contain files of the " +
                   "specified language");
         }
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/" + aceDirectoryName + "/**/adj/*.sgm");
+
       } else if (!compressed){
-        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/**");
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/data/**/**");
       } else {
-        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/data/**/*.gz");
       }
 
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
