@@ -62,12 +62,12 @@ mvn clean install
 ### English Gigaword V5 Indexing
 In the build of `gigaword-indexer`, create a parameter file `index_gigaword.english.params` which has following parameters:
 
-####For Gigaword
+#### Gigaword Corpus:
 ```
 indexName: gigaword
 gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
 ```
-For ACE
+#### ACE Corpus:
 ```
 indexName: ace
 format: ace
