@@ -7,10 +7,10 @@ cd /lfs1/eng.gigaword.v5/
 tar xvzf gigaword_eng_5_LDC2011T07.tgz
 ```
 #### ACE Corpus:
-1. Upload ACE_Corpus (2005) (catalog_id: LDC2006T06) to `/lfs1/`
+1. Upload ACE_Corpus (2005) (catalog_id: LDC2006T06) to `/lfs1/ace.2005.v7/`
 2. Unpack the dataset:
 ```
-cd /lfs1/
+cd /lfs1/ace.2005.v7/
 tar xvzf ace_2005_td_v7_LDC2006T06.tgz
 ```
 
