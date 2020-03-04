@@ -164,8 +164,6 @@ public class IndexGigawordWithElasticSearch {
                             concatenatedFile)) {
                       // we batch the documents in groups of 100 so we can get the efficiency gains
                       // from batching without making huge requests of unbounded size
-                      for (Article article : articleSource){
-                      }
                       final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
 
                       boolean shouldContinue = index(client, batchedArticles, indexName, lang,
