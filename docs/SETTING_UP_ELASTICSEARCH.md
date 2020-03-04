@@ -58,6 +58,10 @@ git clone https://github.com/isi-vista/curated-training-annotator.git
 cd curated-training-annotator
 mvn clean install
 ```
+Note: If this command fails in building just the annotation-utils module, skip it in the build as we do not need it to index corpora with:
+```
+mvn clean install -pl !annotation-utils
+```
 
 ### English Gigaword V5 Indexing
 In the build of `gigaword-indexer`, create a parameter file `index_gigaword.english.params` which has following parameters:
