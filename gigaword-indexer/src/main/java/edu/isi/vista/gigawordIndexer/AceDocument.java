@@ -34,7 +34,12 @@ public class AceDocument implements ArticleSource {
     }
 
     private class ArticleIterator extends AbstractIterator<Article> {
+        // This is to prevent the iterator from iterating infinitely
+        boolean FirstCompute = false;
         protected Article computeNext(){
+            if (FirstCompute) {
+                return endOfData();
+            }
             // DOC ID marker
             Pattern ACE_DOC_ID_PATTERN = Pattern.compile("<DOCID> (.*?) </DOCID>");
 
@@ -44,7 +49,9 @@ public class AceDocument implements ArticleSource {
             if (m.find()) {
                 String docId = m.group(1);
                 docText = docText.replaceAll("\\r\\n", "\n");
-                docText = docText.replaceAll("<.*?>", "");
+                // Add if needed:
+                //docText = docText.replaceAll("<.*?>", "");
+                FirstCompute = true;
                 return new Article(docId, docText);
             } else {
                 throw new RuntimeException("Missing document ID on article");
