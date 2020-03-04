@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * Single ACE Document as an article source
  */
 public class AceDocument implements ArticleSource {
-    private String docText;
+    final private String docText;
 
     private AceDocument(String fileText) {
         this.docText = Objects.requireNonNull(fileText);
@@ -35,9 +35,9 @@ public class AceDocument implements ArticleSource {
 
     private class ArticleIterator extends AbstractIterator<Article> {
         // This is to prevent the iterator from iterating infinitely
-        boolean FirstCompute = false;
+        boolean firstCompute = false;
         protected Article computeNext(){
-            if (FirstCompute) {
+            if (firstCompute) {
                 return endOfData();
             }
             // DOC ID marker
@@ -48,11 +48,9 @@ public class AceDocument implements ArticleSource {
                             docText.substring(0, Math.min(120, docText.length())));
             if (m.find()) {
                 String docId = m.group(1);
-                docText = docText.replaceAll("\\r\\n", "\n");
-                // Add if needed:
-                //docText = docText.replaceAll("<.*?>", "");
-                FirstCompute = true;
-                return new Article(docId, docText);
+                String processedDocText = docText.replaceAll("\\r\\n", "\n");
+                firstCompute = true;
+                return new Article(docId, processedDocText);
             } else {
                 throw new RuntimeException("Missing document ID on article");
             }
