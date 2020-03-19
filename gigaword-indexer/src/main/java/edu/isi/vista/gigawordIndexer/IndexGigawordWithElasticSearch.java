@@ -1,5 +1,7 @@
 package edu.isi.vista.gigawordIndexer;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import edu.isi.nlp.parameters.Parameters;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -22,6 +24,9 @@ import java.nio.file.PathMatcher;
 import java.util.Date;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.partition;
@@ -90,6 +95,11 @@ public class IndexGigawordWithElasticSearch {
 
   private static final int BATCH_SIZE = 100;
 
+  private static final ImmutableMap<String, String> languageToAceDirectoryName = ImmutableMap.of(
+          "english", "English",
+          "chinese", "Chinese",
+          "arabic", "Arabic");
+
   // make error-prone not complain about the use of allMatch below
   @SuppressWarnings("ReturnValueIgnored")
   public static void main(String[] argv) throws IOException {
@@ -118,15 +128,29 @@ public class IndexGigawordWithElasticSearch {
         maxDocumentsToIndex = OptionalInt.of(
                 parameters.getPositiveInteger(MAX_DOCS_TO_PROCESS_PARAM));
       }
-      PathMatcher filePattern;
+
+      final PathMatcher filePattern;
       if (format.equalsIgnoreCase("LTF")) {
         filePattern = FileSystems.getDefault().getPathMatcher("glob:**.ltf.zip");
-      } else if (!compressed){
-        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/**");
-      } else {
-        filePattern = FileSystems.getDefault().getPathMatcher("glob:**/data/**/*.gz");
-      }
+      } else if (format.equalsIgnoreCase("ace")) {
+        // Source files (unannotated) are in the .sgm format
+        // Only checks each adj subdirectory to avoid duplicate source files
+        // (as fp1, fp2 and timex2 use the same source files)
+        final String aceDirectoryName = languageToAceDirectoryName.get(lang.toLowerCase());
+        if (aceDirectoryName == null) {
+          throw new RuntimeException("The ACE corpus does not contain files of the " +
+                  "specified language");
+        }
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/" + aceDirectoryName + "/**/adj/*.sgm");
 
+      } else if (!compressed){
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/data/**/**");
+      } else {
+        filePattern = FileSystems.getDefault()
+                .getPathMatcher("glob:**/data/**/*.gz");
+      }
 
       try (Stream<Path> corpusFiles = Files.walk(corpusDirPath)) {
         //noinspection ResultOfMethodCallIgnored
@@ -155,7 +179,7 @@ public class IndexGigawordWithElasticSearch {
                   }
                   return true;
                 });
-      }
+        }
 
       log.info("{} documents indexed, {} failed", totalDoc-indexFailed, indexFailed);
     } catch (Exception e) {
@@ -165,22 +189,24 @@ public class IndexGigawordWithElasticSearch {
   }
 
   private static ArticleSource getArticleSource(String format, boolean compressed,
-          Path concatenatedFile) throws Exception
+          Path sourceFile) throws Exception
   {
-    if (format.equalsIgnoreCase("ltf")) {
-      return LTFDocuments.fromLTFZippedFile(concatenatedFile);
+    if (format.equalsIgnoreCase("ace")) {
+      return AceDocument.AceDocumentFromPath(sourceFile);
+    } else if (format.equalsIgnoreCase("ltf")) {
+      return LTFDocuments.fromLTFZippedFile(sourceFile);
     } else if (format.equalsIgnoreCase("annotated_gigaword")) {
       log.warn("Indexing an annotated version of Gigaword.");
-      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(concatenatedFile);
+      return ConcatenatedAnnotatedGigawordDocuments.fromAnnotatedGigwordGZippedFile(sourceFile);
     } else if (format.equalsIgnoreCase("gigaword")) {
         if (compressed) {
-          return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(concatenatedFile);
+          return ConcatenatedGigawordDocuments.fromGigwordGZippedFile(sourceFile);
         } else {
-          return ConcatenatedGigawordDocuments.fromGigawordFile(concatenatedFile);
+          return ConcatenatedGigawordDocuments.fromGigawordFile(sourceFile);
         }
     } else {
       throw new RuntimeException("Unknown input for parameter format. " +
-              "Possible values are \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
+              "Possible values are \"ace\", \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
     }
   }
 
@@ -213,7 +239,6 @@ public class IndexGigawordWithElasticSearch {
       String lang,
       double fractionDocAllowToFail,
       int sentenceLimit) throws IOException {
-
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
@@ -247,6 +272,7 @@ public class IndexGigawordWithElasticSearch {
     }
     return true;
   }
+
 
   /**
    * The source format is according to Inception's ElasticSearch-based external search.
