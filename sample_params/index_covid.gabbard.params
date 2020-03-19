@@ -1,0 +1,4 @@
+indexName: covid19
+corpusDirectoryPath: /Users/gabbard/projects/gaia/curated-training/corpora/2020-03-13
+format: covid19
+dryRun: true

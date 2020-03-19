@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.google.common.collect.Iterables.mergeSorted;
 import static com.google.common.collect.Iterables.partition;
 
 /**
@@ -81,6 +82,8 @@ public class IndexGigawordWithElasticSearch {
 
   private static final String SENTENCE_LIMIT = "sentenceLimit";
 
+  private static final String PARAM_DRY_RUN = "dryRun";
+
   /**
    * Limits how many documents will be indexed. This is useful mostly for testing purposes.
    */
@@ -123,6 +126,7 @@ public class IndexGigawordWithElasticSearch {
           Double.parseDouble(parameters.getOptionalString(PARAM_FRACTIOIN_DOCS_ALLOWED_TO_FAIL)
               .or("0.0"));
       final int sentenceLimit = parameters.getOptionalInteger(SENTENCE_LIMIT).or(100);
+      final boolean dryRun = parameters.getOptionalBoolean(PARAM_DRY_RUN).or(false);
       final Path corpusDirPath = parameters.getExistingDirectory(PARAM_CORPUS_DIRECTORY_PATH).toPath();
       if (parameters.isPresent(MAX_DOCS_TO_PROCESS_PARAM)) {
         maxDocumentsToIndex = OptionalInt.of(
@@ -144,6 +148,10 @@ public class IndexGigawordWithElasticSearch {
         filePattern = FileSystems.getDefault()
                 .getPathMatcher("glob:**/" + aceDirectoryName + "/**/adj/*.sgm");
 
+      } else if (format.equalsIgnoreCase("covid19")) {
+        final String dirNames = "(comm_use_subset|noncomm_use_subset|pmc_custom_license|biorxiv_medrxiv)";
+        // the directories have two levels with the same name
+        filePattern = FileSystems.getDefault().getPathMatcher("regex:.*" + dirNames + "/" + dirNames);
       } else if (!compressed){
         filePattern = FileSystems.getDefault()
                 .getPathMatcher("glob:**/data/**/**");
@@ -160,6 +168,8 @@ public class IndexGigawordWithElasticSearch {
             // continue
             .allMatch(
                 concatenatedFile -> {
+                  log.info("Examining file {}", concatenatedFile);
+                  log.info("Total documents before processing: {}", totalDoc);
                     try (ArticleSource articleSource = getArticleSource(format, compressed,
                             concatenatedFile)) {
                       // we batch the documents in groups of 100 so we can get the efficiency gains
@@ -167,7 +177,7 @@ public class IndexGigawordWithElasticSearch {
                       final Iterable<List<Article>> batchedArticles = partition(articleSource, BATCH_SIZE);
 
                       boolean shouldContinue = index(client, batchedArticles, indexName, lang,
-                              fractionDocAllowToFail, sentenceLimit);
+                              fractionDocAllowToFail, sentenceLimit, dryRun);
                       if (!shouldContinue) {
                         log.info(
                                 "Indexing terminated early without error, probably due to the user "
@@ -177,6 +187,7 @@ public class IndexGigawordWithElasticSearch {
                   } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
+                  log.info("Total documents after processing: {}", totalDoc);
                   return true;
                 });
         }
@@ -204,6 +215,8 @@ public class IndexGigawordWithElasticSearch {
         } else {
           return ConcatenatedGigawordDocuments.fromGigawordFile(sourceFile);
         }
+    } else if (format.equalsIgnoreCase("covid19")) {
+      return Covid19ArticleSource.fromDirectory(sourceFile);
     } else {
       throw new RuntimeException("Unknown input for parameter format. " +
               "Possible values are \"ace\", \"ltf\", \"annotated_gigaword\" and \"gigaword\".");
@@ -238,7 +251,8 @@ public class IndexGigawordWithElasticSearch {
       String indexName,
       String lang,
       double fractionDocAllowToFail,
-      int sentenceLimit) throws IOException {
+      int sentenceLimit,
+          boolean dryRun) throws IOException {
     for (List<Article> articles : iterator) {
       final BulkRequest bulkRequest = new BulkRequest();
       for (Article article : articles) {
@@ -251,7 +265,7 @@ public class IndexGigawordWithElasticSearch {
           indexFailed += 1;
           log.warn("Document not indexed because it exceeded the size limit of {}: {}, {}",
               sentenceLimit , article.getSegments(), article.getId());
-        } else {
+        } else if (!dryRun) {
           XContentBuilder sourceBuilder =
               buildSourceObject(article, lang, "", new Date().toString(), "");
           bulkRequest.add(
