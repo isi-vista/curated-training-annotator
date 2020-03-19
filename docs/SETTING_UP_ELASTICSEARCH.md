@@ -1,9 +1,17 @@
 ### Upload Dataset for index
+#### Gigaword Corpus:
 1. Upload English Gigaword V5 (catalog_id: LDC2011T07) to `/lfs1/eng.gigaword.v5/`
 2. Unpack the dataset:
 ```
 cd /lfs1/eng.gigaword.v5/
 tar xvzf gigaword_eng_5_LDC2011T07.tgz
+```
+#### ACE Corpus:
+1. Upload ACE_Corpus (2005) (catalog_id: LDC2006T06) to `/lfs1/ace.2005.v7/`
+2. Unpack the dataset:
+```
+cd /lfs1/ace.2005.v7/
+tar xvzf ace_2005_td_v7_LDC2006T06.tgz
 ```
 
 ### Install ElasticSearch and start the service
@@ -50,12 +58,25 @@ git clone https://github.com/isi-vista/curated-training-annotator.git
 cd curated-training-annotator
 mvn clean install
 ```
+Note: If this command fails in building just the annotation-utils module, skip it in the build as we do not need it to index corpora with:
+```
+mvn clean install -pl !annotation-utils
+```
 
 ### English Gigaword V5 Indexing
 In the build of `gigaword-indexer`, create a parameter file `index_gigaword.english.params` which has following parameters:
+
+#### Gigaword Corpus:
 ```
 indexName: gigaword
 gigawordDirectoryPath: /lfs1/eng.gigaword.v5/gigaword_eng_5
+```
+#### ACE Corpus:
+```
+indexName: ace
+format: ace
+lang: english
+corpusDirectoryPath: /lfs1/ace_2005_td_v7
 ```
 
 Then, run:
