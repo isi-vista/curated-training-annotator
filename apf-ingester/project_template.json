@@ -46,7 +46,152 @@
 	    "tag_description" : null
 	  } ],
 	"create_tag" : false
+  }, {
+  "name" : "AceEntityTypes",
+  "typeUiName" : null,
+  "description" : "ACE EntityType.SubType",
+  "language" : "English",
+  "type" : null,
+  "type_name" : null,
+  "type_description" : null,
+  "tags" : [ {
+    "tag_name" : "FAC.Airport",
+    "tag_description" : null
+  }, {
+    "tag_name" : "FAC.Building-or-Grounds",
+    "tag_description" : null
+  }, {
+    "tag_name" : "FAC.Path",
+    "tag_description" : null
+  }, {
+    "tag_name" : "FAC.Plant",
+    "tag_description" : null
+  }, {
+    "tag_name" : "FAC.Subarea-Facility",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.Continent",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.County-or-District",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.GPE-Cluster",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.Nation",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.Population-Center",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.Special",
+    "tag_description" : null
+  }, {
+    "tag_name" : "GPE.State-or-Province",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Address",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Boundary",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Celestial",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Land-Region-natural",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Region-General",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Region-International",
+    "tag_description" : null
+  }, {
+    "tag_name" : "LOC.Water-Body",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Commercial",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Educational",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Entertainment",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Government",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Media",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Medical-Science",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Non-Governmental",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Religious",
+    "tag_description" : null
+  }, {
+    "tag_name" : "ORG.Sports",
+    "tag_description" : null
+  }, {
+    "tag_name" : "PER.Group",
+    "tag_description" : null
+  }, {
+    "tag_name" : "PER.Indeterminate",
+    "tag_description" : null
+  }, {
+    "tag_name" : "PER.Induvidual",
+    "tag_description" : null
+  }, {
+    "tag_name" : "VEH.Air",
+    "tag_description" : null
+  }, {
+    "tag_name" : "VEH.Land",
+    "tag_description" : null
+  }, {
+    "tag_name" : "VEH.Subarea-Vehicle",
+    "tag_description" : null
+  }, {
+    "tag_name" : "VEH.Underspecified",
+    "tag_description" : null
+  }, {
+    "tag_name" : "VEH.Water",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Biological",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Blunt",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Chemical",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Exploding",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Nuclear",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Projectile",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Sharp",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Shooting",
+    "tag_description" : null
+  }, {
+    "tag_name" : "WEA.Underspecified",
+    "tag_description" : null
   } ],
+  "create_tag" : false
+} ],
   "layers" : [ {
 	"name" : "webanno.custom.CTEventSpan",
 	"features" : [ {
@@ -150,6 +295,192 @@
 	"project_name" : "FILL_ME_IN",
 	"linked_list_behavior" : false,
 	"on_click_javascript_action" : null
+  }, {
+    "name" : "webanno.custom.AceEntitySpan",
+    "features" : [ {
+      "name" : "entity_type",
+      "tag_set" : {
+        "name" : "AceEntityTypes",
+        "typeUiName" : null,
+        "description" : "ACE EntityType.SubType",
+        "language" : "English",
+        "type" : null,
+        "type_name" : null,
+        "type_description" : null,
+        "tags" : [ {
+          "tag_name" : "FAC.Airport",
+          "tag_description" : null
+        }, {
+          "tag_name" : "FAC.Building-or-Grounds",
+          "tag_description" : null
+        }, {
+          "tag_name" : "FAC.Path",
+          "tag_description" : null
+        }, {
+          "tag_name" : "FAC.Plant",
+          "tag_description" : null
+        }, {
+          "tag_name" : "FAC.Subarea-Facility",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.Continent",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.County-or-District",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.GPE-Cluster",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.Nation",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.Population-Center",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.Special",
+          "tag_description" : null
+        }, {
+          "tag_name" : "GPE.State-or-Province",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Address",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Boundary",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Celestial",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Land-Region-natural",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Region-General",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Region-International",
+          "tag_description" : null
+        }, {
+          "tag_name" : "LOC.Water-Body",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Commercial",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Educational",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Entertainment",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Government",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Media",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Medical-Science",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Non-Governmental",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Religious",
+          "tag_description" : null
+        }, {
+          "tag_name" : "ORG.Sports",
+          "tag_description" : null
+        }, {
+          "tag_name" : "PER.Group",
+          "tag_description" : null
+        }, {
+          "tag_name" : "PER.Indeterminate",
+          "tag_description" : null
+        }, {
+          "tag_name" : "PER.Induvidual",
+          "tag_description" : null
+        }, {
+          "tag_name" : "VEH.Air",
+          "tag_description" : null
+        }, {
+          "tag_name" : "VEH.Land",
+          "tag_description" : null
+        }, {
+          "tag_name" : "VEH.Subarea-Vehicle",
+          "tag_description" : null
+        }, {
+          "tag_name" : "VEH.Underspecified",
+          "tag_description" : null
+        }, {
+          "tag_name" : "VEH.Water",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Biological",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Blunt",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Chemical",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Exploding",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Nuclear",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Projectile",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Sharp",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Shooting",
+          "tag_description" : null
+        }, {
+          "tag_name" : "WEA.Underspecified",
+          "tag_description" : null
+        } ],
+        "create_tag" : false
+      },
+      "uiName" : "entity_type",
+      "type" : "uima.cas.String",
+      "enabled" : true,
+      "visible" : true,
+      "include_in_hover" : false,
+      "required" : false,
+      "remember" : false,
+      "hideUnconstraintFeature" : false,
+      "description" : null,
+      "project_name" : "FILL_ME_IN",
+      "multi_value_mode" : "NONE",
+      "link_mode" : "NONE",
+      "link_type_name" : null,
+      "link_type_role_feature_name" : null,
+      "link_type_target_feature_name" : null,
+      "traits" : "{\"multipleRows\":false,\"collapsedRows\":1,\"expandedRows\":1,\"keyBindings\":[]}"
+    } ],
+    "uiName" : "AceEntitySpan",
+    "type" : "span",
+    "description" : null,
+    "enabled" : true,
+    "built_in" : false,
+    "readonly" : false,
+    "attach_type" : null,
+    "attach_feature" : null,
+    "allow_stacking" : true,
+    "cross_sentence" : false,
+    "show_hover" : true,
+    "anchoring_mode" : "CHARACTERS",
+    "overlap_mode" : "ANY_OVERLAP",
+    "validation_mode" : "ALWAYS",
+    "lock_to_token_offset" : false,
+    "multiple_tokens" : false,
+    "project_name" : "FILL_ME_IN",
+    "linked_list_behavior" : false,
+    "on_click_javascript_action" : null
   }, {
 	"name" : "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token",
 	"features" : [ {

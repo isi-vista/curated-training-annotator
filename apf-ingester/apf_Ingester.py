@@ -13,8 +13,13 @@ from immutablecollections import ImmutableSet
 
 # Path to the project config file template (json file)
 JSON_TEMPLATE_PATH = "./project_template.json"
-# Path to target corpus (ACE-Corpus)
-ACE_DATA_PATH = "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\"
+# Path to the cached_annotation_ser directory
+ANNOTATION_SER_PATH = ".\\cached_annotation_ser\\"
+# Path to the cached_xmi directory
+CACHED_XMI_PATH = ".\\cached_xmi\\"
+# Path to target corpus (narrowed ACE-Corpus)
+ACE_DATA_PATH = "C:\\isi\\apf_ingester\\cached_ace_files\\"
+
 # Output Directory Path where configured projects are moved to (use an empty directory)
 OUTPUT_DIR_PATH = "C:\\isi\\apf_ingester\\apf_ingester_output\\"
 
@@ -125,7 +130,11 @@ def get_complete_project_to_doc_mapping(ace_corpus_path: str) -> Dict[str, List[
 def configure_and_generate_project(json_template_path: str,
                                    event_name: str,
                                    user_name: str,
-                                   event_doc_map: Dict[str, List[str]]) -> None:
+                                   event_doc_map: Dict[str, List[str]],
+                                   ace_data_path: str,
+                                   cached_ser_path: str,
+                                   cached_xmi_path: str,
+                                   output_dir_path: str) -> None:
     """
 
     Args:
@@ -134,6 +143,9 @@ def configure_and_generate_project(json_template_path: str,
         event_name (str): Event name in the format of "EVENT_TYPE.EVENT_SUBTYPE"
         user_name (str): The Inception username of the annotator
         event_doc_map (Dict[str, List[str]]): Mapping of event_name to List of document_names ()
+        ace_data_path (str): Path to directory containing all the .apf and .sgm files
+        cached_ser_path (str): Path to cached pre-annotated .ser files
+        output_dir_path (str): Output directory
 
     Returns:
          None
@@ -155,28 +167,37 @@ def configure_and_generate_project(json_template_path: str,
                                         "user": user_name})
 
     # Use a TemporaryDirectory to create files that need to be zipped
-    with tempfile.TemporaryDirectory(dir=OUTPUT_DIR_PATH) as temp_directory_name:
+    with tempfile.TemporaryDirectory(dir=output_dir_path) as temp_directory_name:
+        # Add annotation .ser files into the annotation_ser directory
+        annotation_target_path = pathlib.Path(temp_directory_name) / "annotation_ser"
+        os.mkdir(annotation_target_path)
         # Add Source Document information to the config file
         # and put copies of each source file into a new directory called source
         source_target_path = pathlib.Path(temp_directory_name) / "source"
         os.mkdir(source_target_path)
         for doc_name in event_doc_map[event_name]:
-            data['source_documents'].append({"name": doc_name,
-                                             "format": "text",
-                                             "state": "ANNOTATION_IN_PROGRESS",
+            xmi_doc_name = doc_name + '.xmi'
+            data['source_documents'].append({"name": xmi_doc_name,
+                                             "format": "xmi",
+                                             "state": "NEW",
                                              "timestamp": "null",
                                              "sentence_accessed": "0",
                                              "created": "null",
                                              "updated": "null"})
 
-            # Move source files to source directory to be compressed
+            # Copy .ser files in their enclosed directories to annotation_ser to be compressed
+            # Directory name ends with a .xmi from the inception export of .xmi documents
+            xmi_name = doc_name + '.xmi'
+            shutil.copytree(cached_ser_path + xmi_name,
+                            annotation_target_path / xmi_name)
+            # Copy source files to source directory to be compressed
             # Inception does recognize source files with the .sgm file extension present,
             # so no extension is added
-            shutil.copyfile(ACE_DATA_PATH + doc_name + '.sgm',
-                            source_target_path / doc_name)
+            shutil.copyfile(cached_xmi_path + xmi_name,
+                            source_target_path / xmi_name)
 
             # Cleanup source file (EOLs and in-text markup)
-            cleanup_source_document(source_target_path / doc_name)
+            # cleanup_source_document(source_target_path / doc_name)
 
         # The 'exportedproject' prefix is necessary because the inception importer runs a check
         # specifically for this prefix and the presence of the .json extension
@@ -188,18 +209,43 @@ def configure_and_generate_project(json_template_path: str,
             json.dump(data, project_config, indent=4)  # indents to for human-readability
 
         # Compress the contents of the temporaryDirectory to a .zip file
-        shutil.make_archive(pathlib.Path(OUTPUT_DIR_PATH) / project_name,
+        shutil.make_archive(pathlib.Path(output_dir_path) / project_name,
                             'zip',
                             root_dir=temp_directory_name)
 
 
+def flatten_ace_data(corpus_paths: List[str], destination_path: str):
+    """flatten ace data files (apf and smg only) into a single directory from a list of directory"""
+    for corpus_path in corpus_paths:
+        for filename in os.listdir(corpus_path):
+            if filename.endswith(".sgm") or filename.endswith(".apf.xml"):
+                shutil.copyfile(corpus_path + filename, destination_path + filename)
+
+
 def main():
+    CORPUS_PATHS = ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
+                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",
+                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",
+                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
+                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
+                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"
+                    ]
+
+    flatten_ace_data(CORPUS_PATHS, ACE_DATA_PATH)
+
     complete_map = get_complete_project_to_doc_mapping(ACE_DATA_PATH)
-    # Sample names used
+
     configure_and_generate_project(JSON_TEMPLATE_PATH,
                                    "Movement.Transport",
                                    "test_user",
-                                   complete_map)
+                                   complete_map,
+                                   ACE_DATA_PATH,
+                                   ANNOTATION_SER_PATH,
+                                   CACHED_XMI_PATH,
+                                   OUTPUT_DIR_PATH)
+
+    for key in complete_map:
+        print(key, complete_map[key])
 
 
 if __name__ == "__main__":
