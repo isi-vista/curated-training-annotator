@@ -145,6 +145,7 @@ def configure_and_generate_project(json_template_path: str,
         event_doc_map (Dict[str, List[str]]): Mapping of event_name to List of document_names ()
         ace_data_path (str): Path to directory containing all the .apf and .sgm files
         cached_ser_path (str): Path to cached pre-annotated .ser files
+        cached_xmi_path (str): Path to cached xmi files
         output_dir_path (str): Output directory
 
     Returns:
@@ -176,7 +177,7 @@ def configure_and_generate_project(json_template_path: str,
         source_target_path = pathlib.Path(temp_directory_name) / "source"
         os.mkdir(source_target_path)
         for doc_name in event_doc_map[event_name]:
-            xmi_doc_name = doc_name + '.xmi'
+            xmi_doc_name = doc_name + '-' + event_name + '.xmi'
             data['source_documents'].append({"name": xmi_doc_name,
                                              "format": "xmi",
                                              "state": "NEW",
@@ -187,7 +188,7 @@ def configure_and_generate_project(json_template_path: str,
 
             # Copy .ser files in their enclosed directories to annotation_ser to be compressed
             # Directory name ends with a .xmi from the inception export of .xmi documents
-            xmi_name = doc_name + '.xmi'
+            xmi_name = xmi_doc_name
             shutil.copytree(cached_ser_path + xmi_name,
                             annotation_target_path / xmi_name)
             # Copy source files to source directory to be compressed

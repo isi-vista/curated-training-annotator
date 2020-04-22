@@ -4,6 +4,7 @@ import re
 import codecs
 import os
 import time
+import copy
 from typing import AbstractSet, Any, Dict, List, MutableMapping, Optional, Tuple, Type
 
 CORPUS_PATHS = ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
@@ -44,16 +45,61 @@ def create_cas_from_apf(apf_filename: str, apf_path: str, source_sgm_path: str,
         token = Token(begin=begin, end=end + 1, order='0')
         cas.add_annotation(token)
 
-    apf_entity_list = get_apf_entities_to_list(apf_path)
+    """
+    # Code to import entity mentions and its entity_type
     Custom_Entity = typesystem.get_type('webanno.custom.AceEntitySpan')
+    apf_entity_list = get_apf_entities_to_list(apf_path)
     for entity_id, entity_type, start_offset, end_offset in apf_entity_list:
         entity_annotation = Custom_Entity(begin=start_offset, end=end_offset,
                                           entity_type=entity_type)
         cas.add_annotation(entity_annotation)
+    """
+    Custom_Event = typesystem.get_type('webanno.custom.AceEventSpan')
+    Custom_Event_Relation = typesystem.get_type('webanno.custom.AceEventSpanType')
+    apf_event_list = get_apf_events_to_list(apf_path)
+    # Key: List[(mention_start_offset, mention_end_offset, arguments_list[(role, start, end)])]
+    merged_event_dict: Dict[str, List[(int, int, List[(str, int, int)])]] = {}
+
+    # combine lists with the same event type to a list of tuples (start_offset, end_offset)
+    for event_id, event_type, start_offset, end_offset, arg_list in apf_event_list:
+        if event_type in merged_event_dict:
+            merged_event_dict[event_type].append((start_offset, end_offset, arg_list))
+        else:
+            merged_event_dict[event_type] = [(start_offset, end_offset, arg_list)]
+
+    for event_type_entry, offset_list in merged_event_dict.items():
+        temp_cas = copy.deepcopy(cas)
+        for (start, end, arg_list) in offset_list:
+            event_annotation = Custom_Event(begin=start, end=end+1,
+                                            event_type=event_type_entry)
+            temp_cas.add_annotation(event_annotation)
+            for arg_role, arg_start, arg_end in arg_list:
+                arg_annotation = Custom_Event(begin=start, end=end+1,
+                                              event_type=arg_role)
+                temp_cas.add_annotation(arg_annotation)
+                arg_relation = Custom_Event_Relation(relation_type=arg_role,
+                                                     begin=arg_start,
+                                                     end=arg_end+1,
+                                                     Governor=arg_annotation,
+                                                     Dependent=event_annotation)
+                temp_cas.add_annotation(arg_relation)
+
+        # Serialize the final cas to xmi to the output directory with the same filename as the apf
+        output_file_name = apf_filename.replace(".apf.xml", "-" + event_type_entry + ".xmi")
+        serialize_cas_to_xmi(output_dir_path + output_file_name, temp_cas)
+
+    """
+    print(apf_event_list)
+    print(merged_event_dict)
+    for event_id, event_type, start_offset, end_offset in apf_event_list:
+        event_annotation = Custom_Event(begin=start_offset, end=end_offset,
+                                        event_type=event_type)
+        cas.add_annotation(event_annotation)
 
     # Serialize the final cas to xmi to the output directory with the same filename as the apf
     output_file_name = apf_filename.replace(".apf.xml", ".xmi")
     serialize_cas_to_xmi(output_dir_path + output_file_name, cas)
+    """
 
 
 def serialize_cas_to_xmi(output_path: str, cas_to_serialize):
@@ -96,9 +142,51 @@ def get_apf_entities_to_list(apf_path: str):
                                          entity_mention)
             # mention id is unused for now
             # mention_id = mention_match_obj.group(1)
-            start_offset = mention_match_obj.group(2)
-            end_offset = mention_match_obj.group(3)
+            start_offset = int(mention_match_obj.group(2))
+            end_offset = int(mention_match_obj.group(3))
             ret.append((entity_id, entity_type, start_offset, end_offset))
+    return ret
+
+
+def get_apf_events_to_list(apf_path: str):
+    """Converts events from apf file to a list of
+    (event_ID, event_type, start_offset, end_offset, argument_list) tuples"""
+    ret = []
+    with open(apf_path, 'r') as apf_file:
+        apf_string = apf_file.read()
+    apf_string = apf_string.replace('\n', '')
+    event_data_list = re.findall(r'<event ID=.*?</event>', apf_string)
+    for event_data in event_data_list:
+        match_obj = re.match(r'<event ID="(.*?)" TYPE="(.*?)" SUBTYPE="(.*?)"(.*?)">',
+                             event_data)
+        event_id = match_obj.group(1)
+        event_type = match_obj.group(2) + '.' + match_obj.group(3)
+        event_mention_list = re.findall(r'<event_mention ID=.*?</event_mention>', event_data)
+        for event_mention in event_mention_list:
+            mention_match_obj = re.match(r'<event_mention ID="(.*?)".*?<extent>.*?<charseq '
+                                         r'START="(.*?)" END="(.*?)">',
+                                         event_mention)
+            # mention id is unused for now
+            # mention_id = mention_match_obj.group(1)
+            start_offset = int(mention_match_obj.group(2))
+            end_offset = int(mention_match_obj.group(3))
+            event_argument_list = re.findall(
+                r'<event_mention_argument.*?</event_mention_argument>', event_mention)
+            argument_list = []
+            for argument_data in event_argument_list:
+                with open('./trial.txt', 'w') as f:
+                    f.write(argument_data)
+                argument_match_obj = re.match(r'<event_mention_argument.*?ROLE="(.*?)">.*?<charseq '
+                                              r'START="(.*?)" END="(.*?)">',
+                                              argument_data)
+                # Tuples of (argument_role, arg_start, arg_end)
+                argument_list.append((argument_match_obj.group(1),
+                                      int(argument_match_obj.group(2)),
+                                      int(argument_match_obj.group(3))))
+
+            # Tuple of (event_id, event_type, start_offset, end_offset, argument_list)
+            # for each mention
+            ret.append((event_id, event_type, start_offset, end_offset, argument_list))
     return ret
 
 

@@ -2693,6 +2693,74 @@
                 
         <typeDescription>
                         
+            <name>webanno.custom.AceEventSpan</name>
+                        
+            <description/>
+                        
+            <supertypeName>uima.tcas.Annotation</supertypeName>
+                        
+            <features>
+                                
+                <featureDescription>
+                                        
+                    <name>event_type</name>
+                                        
+                    <description/>
+                                        
+                    <rangeTypeName>uima.cas.String</rangeTypeName>
+                                    
+                </featureDescription>
+                            
+            </features>
+                    
+        </typeDescription>
+                
+        <typeDescription>
+                        
+            <name>webanno.custom.AceEventSpanType</name>
+                        
+            <description/>
+                        
+            <supertypeName>uima.tcas.Annotation</supertypeName>
+                        
+            <features>
+                                
+                <featureDescription>
+                                        
+                    <name>Dependent</name>
+                                        
+                    <description/>
+                                        
+                    <rangeTypeName>webanno.custom.AceEventSpan</rangeTypeName>
+                                    
+                </featureDescription>
+                                
+                <featureDescription>
+                                        
+                    <name>Governor</name>
+                                        
+                    <description/>
+                                        
+                    <rangeTypeName>webanno.custom.AceEventSpan</rangeTypeName>
+                                    
+                </featureDescription>
+                                
+                <featureDescription>
+                                        
+                    <name>relation_type</name>
+                                        
+                    <description/>
+                                        
+                    <rangeTypeName>uima.cas.String</rangeTypeName>
+                                    
+                </featureDescription>
+                            
+            </features>
+                    
+        </typeDescription>
+                
+        <typeDescription>
+                        
             <name>webanno.custom.CTEventSpan</name>
                         
             <description/>
