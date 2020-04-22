@@ -19,17 +19,9 @@ TEST_SGM_PATH = "C:\\isi\\apf_ingester\\test_apf\\test.sgm"
 OUTPUT_DIR_PATH = "apf_ingester_output\\xmi\\"
 
 
-def create_cas_from_apf(apf_filename: str, apf_path: str, source_sgm_path: str,
-                        output_dir_path: str):
+def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: str,
+                        output_dir_path: str, typesystem, cas):
     """Create cas from apf file then converts and deserializes the apf to an xmi file."""
-
-    # Load Typesystem
-    with open('TypeSystem.xml', 'rb') as file:
-        typesystem = load_typesystem(file)
-
-    # Load xmi_template
-    with open('cas_xmi_template.xmi', 'rb') as cas_xmi_file:
-        cas = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
 
     # set mime type
     cas.sofa_mime = "text"
@@ -193,16 +185,24 @@ def get_apf_events_to_list(apf_path: str):
 def main():
     # create_cas_from_apf(TEST_APF_PATH, TEST_SGM_PATH, OUTPUT_DIR_PATH)
 
+    # Load Typesystem
+    with open(TYPE_SYSTEM_PATH, 'rb') as file:
+        typesystem = load_typesystem(file)
+
+    # Load xmi_template
+    with open(CAS_XMI_TEMPLATE_PATH, 'rb') as cas_xmi_file:
+        cas = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
+
     for ace_corpus_path in CORPUS_PATHS:
         print('Processing apf files from: ' + ace_corpus_path)
         start_time = time.perf_counter()
         for filename in os.listdir(ace_corpus_path):
             if filename.endswith(".apf.xml"):
                 print("Processing " + filename)
-                create_cas_from_apf(filename,
-                                    ace_corpus_path + filename,
-                                    ace_corpus_path + filename.replace(".apf.xml", ".sgm"),
-                                    OUTPUT_DIR_PATH)
+                create_cas_from_apf(apf_filename=filename,
+                                    apf_path=ace_corpus_path + filename,
+                                    source_sgm_path=ace_corpus_path + filename.replace(".apf.xml", ".sgm"),
+                                    output_dir_path=OUTPUT_DIR_PATH, typesystem=typesystem, cas=cas)
         elapsed_time = time.perf_counter() - start_time
         print(f"Processing Completed. Time elapsed: {elapsed_time:0.4f} seconds")
 
