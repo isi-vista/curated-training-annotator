@@ -5,24 +5,14 @@ import codecs
 import os
 import time
 import copy
+from vistautils.parameters import Parameters
+from vistautils.parameters_only_entrypoint import parameters_only_entry_point
 from typing import AbstractSet, Any, Dict, List, MutableMapping, Optional, Tuple, Type
-
-CORPUS_PATHS = ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
-                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",
-                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",
-                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
-                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
-                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"
-                ]
-TEST_APF_PATH = "C:\\isi\\apf_ingester\\test_apf\\test.apf.xml"
-TEST_SGM_PATH = "C:\\isi\\apf_ingester\\test_apf\\test.sgm"
-OUTPUT_DIR_PATH = "apf_ingester_output\\xmi\\"
 
 
 def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: str,
                         output_dir_path: str, typesystem, cas):
     """Create cas from apf file then converts and deserializes the apf to an xmi file."""
-
     # set mime type
     cas.sofa_mime = "text"
 
@@ -46,8 +36,8 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
                                           entity_type=entity_type)
         cas.add_annotation(entity_annotation)
     """
-    Custom_Event = typesystem.get_type('webanno.custom.AceEventSpan')
-    Custom_Event_Relation = typesystem.get_type('webanno.custom.AceEventSpanType')
+    Custom_Event = typesystem.get_type('webanno.custom.CTEventSpan')
+    Custom_Event_Relation = typesystem.get_type('webanno.custom.CTEventSpanType')
     apf_event_list = get_apf_events_to_list(apf_path)
     # Key: List[(mention_start_offset, mention_end_offset, arguments_list[(role, start, end)])]
     merged_event_dict: Dict[str, List[(int, int, List[(str, int, int)])]] = {}
@@ -63,11 +53,11 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
         temp_cas = copy.deepcopy(cas)
         for (start, end, arg_list) in offset_list:
             event_annotation = Custom_Event(begin=start, end=end+1,
-                                            event_type=event_type_entry)
+                                            negative_example="false")
             temp_cas.add_annotation(event_annotation)
             for arg_role, arg_start, arg_end in arg_list:
-                arg_annotation = Custom_Event(begin=start, end=end+1,
-                                              event_type=arg_role)
+                arg_annotation = Custom_Event(begin=arg_start, end=arg_end+1,
+                                              negative_example="false")
                 temp_cas.add_annotation(arg_annotation)
                 arg_relation = Custom_Event_Relation(relation_type=arg_role,
                                                      begin=arg_start,
@@ -79,19 +69,6 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
         # Serialize the final cas to xmi to the output directory with the same filename as the apf
         output_file_name = apf_filename.replace(".apf.xml", "-" + event_type_entry + ".xmi")
         serialize_cas_to_xmi(output_dir_path + output_file_name, temp_cas)
-
-    """
-    print(apf_event_list)
-    print(merged_event_dict)
-    for event_id, event_type, start_offset, end_offset in apf_event_list:
-        event_annotation = Custom_Event(begin=start_offset, end=end_offset,
-                                        event_type=event_type)
-        cas.add_annotation(event_annotation)
-
-    # Serialize the final cas to xmi to the output directory with the same filename as the apf
-    output_file_name = apf_filename.replace(".apf.xml", ".xmi")
-    serialize_cas_to_xmi(output_dir_path + output_file_name, cas)
-    """
 
 
 def serialize_cas_to_xmi(output_path: str, cas_to_serialize):
@@ -155,7 +132,7 @@ def get_apf_events_to_list(apf_path: str):
         event_type = match_obj.group(2) + '.' + match_obj.group(3)
         event_mention_list = re.findall(r'<event_mention ID=.*?</event_mention>', event_data)
         for event_mention in event_mention_list:
-            mention_match_obj = re.match(r'<event_mention ID="(.*?)".*?<extent>.*?<charseq '
+            mention_match_obj = re.match(r'<event_mention ID="(.*?)".*?<anchor>.*?<charseq '
                                          r'START="(.*?)" END="(.*?)">',
                                          event_mention)
             # mention id is unused for now
@@ -182,18 +159,22 @@ def get_apf_events_to_list(apf_path: str):
     return ret
 
 
-def main():
+def main(params: Parameters):
     # create_cas_from_apf(TEST_APF_PATH, TEST_SGM_PATH, OUTPUT_DIR_PATH)
+    corpus_paths = params.arbitrary_list("corpus_paths")
+    output_dir_path = params.string("output_dir_path")
+    type_system_path = params.string("type_system_path")
+    cas_xmi_template_path = params.string("cas_xmi_template_path")
 
     # Load Typesystem
-    with open(TYPE_SYSTEM_PATH, 'rb') as file:
+    with open(type_system_path, 'rb') as file:
         typesystem = load_typesystem(file)
 
     # Load xmi_template
-    with open(CAS_XMI_TEMPLATE_PATH, 'rb') as cas_xmi_file:
+    with open(cas_xmi_template_path, 'rb') as cas_xmi_file:
         cas = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
 
-    for ace_corpus_path in CORPUS_PATHS:
+    for ace_corpus_path in corpus_paths:
         print('Processing apf files from: ' + ace_corpus_path)
         start_time = time.perf_counter()
         for filename in os.listdir(ace_corpus_path):
@@ -201,11 +182,12 @@ def main():
                 print("Processing " + filename)
                 create_cas_from_apf(apf_filename=filename,
                                     apf_path=ace_corpus_path + filename,
-                                    source_sgm_path=ace_corpus_path + filename.replace(".apf.xml", ".sgm"),
-                                    output_dir_path=OUTPUT_DIR_PATH, typesystem=typesystem, cas=cas)
+                                    source_sgm_path=ace_corpus_path + filename.replace(
+                                        ".apf.xml", ".sgm"),
+                                    output_dir_path=output_dir_path, typesystem=typesystem, cas=cas)
         elapsed_time = time.perf_counter() - start_time
         print(f"Processing Completed. Time elapsed: {elapsed_time:0.4f} seconds")
 
 
 if __name__ == "__main__":
-    main()
+    parameters_only_entry_point(main)

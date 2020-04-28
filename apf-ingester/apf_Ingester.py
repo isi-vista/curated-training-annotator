@@ -1,27 +1,17 @@
-import datetime
 import re
 import os
 import json
 import shutil
 import tempfile
 import pathlib
+import sys
+from vistautils.parameters import Parameters
+from vistautils.parameters_only_entrypoint import parameters_only_entry_point
 from typing import AbstractSet, Any, Dict, List, MutableMapping, Optional, Tuple, Type
 from immutablecollections import ImmutableSet
 
 # TODO: make paths pathlib.Path objects for better support (Windows/Unix Paths) or/and set up
 #  a Parameters file
-
-# Path to the project config file template (json file)
-JSON_TEMPLATE_PATH = "./project_template.json"
-# Path to the cached_annotation_ser directory
-ANNOTATION_SER_PATH = ".\\cached_annotation_ser\\"
-# Path to the cached_xmi directory
-CACHED_XMI_PATH = ".\\cached_xmi\\"
-# Path to target corpus (narrowed ACE-Corpus)
-ACE_DATA_PATH = "C:\\isi\\apf_ingester\\cached_ace_files\\"
-
-# Output Directory Path where configured projects are moved to (use an empty directory)
-OUTPUT_DIR_PATH = "C:\\isi\\apf_ingester\\apf_ingester_output\\"
 
 
 def cleanup_source_document(sgm_path: str) -> None:
@@ -124,6 +114,8 @@ def get_complete_project_to_doc_mapping(ace_corpus_path: str) -> Dict[str, List[
             apf_path = ace_corpus_path + filename_without_extension + ".apf.xml"
             ingester_input = ApfIngesterInput(apf_path)
             ingester_input.extract_event_list_to_dict(complete_project_map)
+    # Add empty entry for 'None' type, to generate an empty project
+    complete_project_map["None"] = []
     return complete_project_map
 
 
@@ -131,7 +123,6 @@ def configure_and_generate_project(json_template_path: str,
                                    event_name: str,
                                    user_name: str,
                                    event_doc_map: Dict[str, List[str]],
-                                   ace_data_path: str,
                                    cached_ser_path: str,
                                    cached_xmi_path: str,
                                    output_dir_path: str) -> None:
@@ -143,7 +134,6 @@ def configure_and_generate_project(json_template_path: str,
         event_name (str): Event name in the format of "EVENT_TYPE.EVENT_SUBTYPE"
         user_name (str): The Inception username of the annotator
         event_doc_map (Dict[str, List[str]]): Mapping of event_name to List of document_names ()
-        ace_data_path (str): Path to directory containing all the .apf and .sgm files
         cached_ser_path (str): Path to cached pre-annotated .ser files
         cached_xmi_path (str): Path to cached xmi files
         output_dir_path (str): Output directory
@@ -223,31 +213,40 @@ def flatten_ace_data(corpus_paths: List[str], destination_path: str):
                 shutil.copyfile(corpus_path + filename, destination_path + filename)
 
 
-def main():
-    CORPUS_PATHS = ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
-                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",
-                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",
-                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
-                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
-                    "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"
-                    ]
+def main(params: Parameters):
+    # List of the six ACE corpus /adj/ folders (one for each type: bc, bn, cts, nw, un, wl)
+    corpus_paths = params.arbitrary_list("corpus_paths")
+    # Path to the project config file template (json file)
+    json_template_path = params.string("json_template_path")
+    # Path to the cached_annotation_ser directory
+    annotation_ser_path = params.string("annotation_ser_path")
+    # Path to the cached_xmi directory
+    cached_xmi_path = params.string("cached_xmi_path")
+    # Path to target corpus (narrowed ACE-Corpus)
+    ace_data_path = params.string("ace_data_path")
 
-    flatten_ace_data(CORPUS_PATHS, ACE_DATA_PATH)
+    # List of users (strings)
+    user_list = params.arbitrary_list("user_list")
+    # List of event type (Format: "EVENT_TYPE.SUBTYPE" strings)
+    event_list = params.arbitrary_list("event_list")
 
-    complete_map = get_complete_project_to_doc_mapping(ACE_DATA_PATH)
+    # Output Directory Path where configured projects are moved to (use an empty directory)
+    output_dir_path = params.string("output_dir_path")
 
-    configure_and_generate_project(JSON_TEMPLATE_PATH,
-                                   "Movement.Transport",
-                                   "test_user",
-                                   complete_map,
-                                   ACE_DATA_PATH,
-                                   ANNOTATION_SER_PATH,
-                                   CACHED_XMI_PATH,
-                                   OUTPUT_DIR_PATH)
+    flatten_ace_data(corpus_paths, ace_data_path)
 
-    for key in complete_map:
-        print(key, complete_map[key])
+    complete_map = get_complete_project_to_doc_mapping(ace_data_path)
+
+    for user in user_list:
+        for event_type in event_list:
+            configure_and_generate_project(json_template_path,
+                                           event_type,
+                                           user,
+                                           complete_map,
+                                           annotation_ser_path,
+                                           cached_xmi_path,
+                                           output_dir_path)
 
 
 if __name__ == "__main__":
-    main()
+    parameters_only_entry_point(main)

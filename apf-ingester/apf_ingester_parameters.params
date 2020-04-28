@@ -1,0 +1,13 @@
+json_template_path: "./project_template.json"
+annotation_ser_path: ".\\cached_annotation_ser\\"
+cached_xmi_path: ".\\cached_xmi\\"
+ace_data_path: "C:\\isi\\apf_ingester\\cached_ace_files\\"
+output_dir_path: "C:\\isi\\apf_ingester\\apf_ingester_output\\"
+corpus_paths: ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
+               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",
+               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",
+               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
+               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
+               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"]
+user_list: ["test_user"]
+event_list: ["Movement.Transport"]
