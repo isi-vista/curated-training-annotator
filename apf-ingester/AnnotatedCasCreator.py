@@ -11,8 +11,10 @@ from typing import AbstractSet, Any, Dict, List, MutableMapping, Optional, Tuple
 
 
 def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: str,
-                        output_dir_path: str, typesystem, cas):
+                        output_dir_path: str, typesystem, cas_template):
     """Create cas from apf file then converts and deserializes the apf to an xmi file."""
+    # Do not edit template directly, make a copy
+    cas = copy.deepcopy(cas_template)
     # set mime type
     cas.sofa_mime = "text"
 
@@ -172,7 +174,7 @@ def main(params: Parameters):
 
     # Load xmi_template
     with open(cas_xmi_template_path, 'rb') as cas_xmi_file:
-        cas = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
+        cas_template = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
 
     for ace_corpus_path in corpus_paths:
         print('Processing apf files from: ' + ace_corpus_path)
@@ -184,7 +186,8 @@ def main(params: Parameters):
                                     apf_path=ace_corpus_path + filename,
                                     source_sgm_path=ace_corpus_path + filename.replace(
                                         ".apf.xml", ".sgm"),
-                                    output_dir_path=output_dir_path, typesystem=typesystem, cas=cas)
+                                    output_dir_path=output_dir_path, typesystem=typesystem,
+                                    cas_template=cas_template)
         elapsed_time = time.perf_counter() - start_time
         print(f"Processing Completed. Time elapsed: {elapsed_time:0.4f} seconds")
 
