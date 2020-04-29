@@ -24,25 +24,7 @@
 	"type_name" : null,
 	"type_description" : null,
 	"tags" : [ {
-	    "tag_name" : "Attacker",
-	    "tag_description" : null
-	  }, {
-	    "tag_name" : "Instrument",
-	    "tag_description" : null
-	  }, {
-	    "tag_name" : "Place",
-	    "tag_description" : null
-	  }, {
-	    "tag_name" : "Target",
-	    "tag_description" : null
-	  }, {
 	    "tag_name" : "interesting",
-	    "tag_description" : null
-	  }, {
-	    "tag_name" : "time",
-	    "tag_description" : null
-	  }, {
-	    "tag_name" : "trigger",
 	    "tag_description" : null
 	  } ],
 	"create_tag" : false
