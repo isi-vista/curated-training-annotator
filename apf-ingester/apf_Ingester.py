@@ -220,10 +220,16 @@ def main(params: Parameters):
     json_template_path = params.string("json_template_path")
     # Path to the cached_annotation_ser directory
     annotation_ser_path = params.string("annotation_ser_path")
+    if not os.path.exists(annotation_ser_path):
+        os.makedirs(annotation_ser_path)
     # Path to the cached_xmi directory
     cached_xmi_path = params.string("cached_xmi_path")
+    if not os.path.exists(cached_xmi_path):
+        os.makedirs(cached_xmi_path)
     # Path to target corpus (narrowed ACE-Corpus)
-    ace_data_path = params.string("ace_data_path")
+    cached_ace_data_path = params.string("cached_ace_data_path")
+    if not os.path.exists(cached_ace_data_path):
+        os.makedirs(cached_ace_data_path)
 
     # List of users (strings)
     user_list = params.arbitrary_list("user_list")
@@ -233,9 +239,9 @@ def main(params: Parameters):
     # Output Directory Path where configured projects are moved to (use an empty directory)
     output_dir_path = params.string("output_dir_path")
 
-    flatten_ace_data(corpus_paths, ace_data_path)
+    flatten_ace_data(corpus_paths, cached_ace_data_path)
 
-    complete_map = get_complete_project_to_doc_mapping(ace_data_path)
+    complete_map = get_complete_project_to_doc_mapping(cached_ace_data_path)
 
     for user in user_list:
         for event_type in event_list:

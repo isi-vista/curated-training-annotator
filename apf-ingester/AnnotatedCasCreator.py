@@ -145,8 +145,6 @@ def get_apf_events_to_list(apf_path: str):
                 r'<event_mention_argument.*?</event_mention_argument>', event_mention)
             argument_list = []
             for argument_data in event_argument_list:
-                with open('./trial.txt', 'w') as f:
-                    f.write(argument_data)
                 argument_match_obj = re.match(r'<event_mention_argument.*?ROLE="(.*?)">.*?<charseq '
                                               r'START="(.*?)" END="(.*?)">',
                                               argument_data)
@@ -164,7 +162,7 @@ def get_apf_events_to_list(apf_path: str):
 def main(params: Parameters):
     # create_cas_from_apf(TEST_APF_PATH, TEST_SGM_PATH, OUTPUT_DIR_PATH)
     corpus_paths = params.arbitrary_list("corpus_paths")
-    output_dir_path = params.string("output_dir_path")
+    output_xmi_dir_path = params.string("cached_xmi_path")
     type_system_path = params.string("type_system_path")
     cas_xmi_template_path = params.string("cas_xmi_template_path")
 
@@ -186,7 +184,7 @@ def main(params: Parameters):
                                     apf_path=ace_corpus_path + filename,
                                     source_sgm_path=ace_corpus_path + filename.replace(
                                         ".apf.xml", ".sgm"),
-                                    output_dir_path=output_dir_path, typesystem=typesystem,
+                                    output_dir_path=output_xmi_dir_path, typesystem=typesystem,
                                     cas_template=cas_template)
         elapsed_time = time.perf_counter() - start_time
         print(f"Processing Completed. Time elapsed: {elapsed_time:0.4f} seconds")
