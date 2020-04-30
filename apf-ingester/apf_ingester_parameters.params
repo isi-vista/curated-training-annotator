@@ -1,4 +1,3 @@
-admin_username: "ashwin_kumar"
 json_template_path: "./project_template.json"
 type_system_path: "TypeSystem.xml"
 cas_xmi_template_path: "cas_xmi_template.xmi"

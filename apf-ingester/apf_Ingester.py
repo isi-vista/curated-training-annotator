@@ -117,7 +117,6 @@ def get_complete_project_to_doc_mapping(ace_corpus_path: str) -> Dict[str, List[
 def configure_and_generate_project(json_template_path: str,
                                    event_name: str,
                                    user_name: str,
-                                   admin_name: str,
                                    event_doc_map: Dict[str, List[str]],
                                    cached_ser_path: str,
                                    cached_xmi_path: str,
@@ -149,13 +148,6 @@ def configure_and_generate_project(json_template_path: str,
         for feature in layer['features']:
             feature['project_name'] = project_name
 
-    # Admin (creator) permission
-    data['project_permissions'].append({"level": "ADMIN",
-                                        "user": admin_name})
-    data['project_permissions'].append({"level": "CURATOR",
-                                        "user": admin_name})
-    data['project_permissions'].append({"level": "USER",
-                                        "user": admin_name})
     # Set user permissions
     data['project_permissions'].append({"level": "USER",
                                         "user": user_name})
@@ -217,8 +209,6 @@ def flatten_ace_data(corpus_paths: List[str], destination_path: str):
 
 
 def main(params: Parameters):
-    # Admin name: username of administrator importing projects in inception
-    admin_username = params.string("admin_username")
     # List of the six ACE corpus /adj/ folders (one for each type: bc, bn, cts, nw, un, wl)
     corpus_paths = params.arbitrary_list("corpus_paths")
     # Path to the project config file template (json file)
@@ -256,7 +246,6 @@ def main(params: Parameters):
                     configure_and_generate_project(json_template_path,
                                                    event,
                                                    user,
-                                                   admin_username,
                                                    complete_map,
                                                    annotation_ser_path,
                                                    cached_xmi_path,
@@ -265,7 +254,6 @@ def main(params: Parameters):
                 configure_and_generate_project(json_template_path,
                                                event_type,
                                                user,
-                                               admin_username,
                                                complete_map,
                                                annotation_ser_path,
                                                cached_xmi_path,
