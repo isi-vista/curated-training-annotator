@@ -1,6 +1,6 @@
 ## Setting up Inception on an ISI Virtual Machine
 
-The directions at https://inception-project.github.io//releases/0.7.2/docs/admin-guide.html assume you are using Ubuntu, 
+The directions at https://inception-project.github.io/releases/0.15.2/docs/admin-guide.html assume you are using Ubuntu, 
 but our VMs run CentOS.  
 
 This document will describe any necessary adaptations.
@@ -166,6 +166,8 @@ sudo systemctl restart inception
 
 # Update Inception
 
+Official documentation: https://inception-project.github.io/releases/0.15.2/docs/admin-guide.html#sect_upgrade
+
 ## Create backups
 Before you begin the upgrade, you'll want to create backups in case the upgrade doesn't
 go as planned. Your backup files should consist of the Inception
@@ -178,10 +180,12 @@ home directory and the SQL databases.
   mysqldump -u root -p --result-file=inception_db_dump.sql --all-databases
   ```
 
+This will prompt you for `root`'s MySQL password. If you don't have it, ask one of the admins.
+
 ## Update
 Reminder: you may need to use `sudo` for most of these commands.
 ```
-cd /home/gabbard/inception
+cd /home/[username]/inception
 checkout the branch or otherwise put the git repo in the state you want
 mvn clean install -DskipTests=true
 cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
@@ -192,9 +196,15 @@ You may receive a warning that `inception.service` changed on the disk. In this 
 systemctl daemon-reload
 systemctl restart inception
 ```
-Restarting Inception may take a while, so it's normal for the server to be unreachable for a few
-minutes. Check the log to see if anything strange is going on:
+Rebooting Inception may take a while, so it's normal for the server to be unreachable for a few
+minutes.
 
+Check the log file to make sure that nothing strange is going on:
 ```
 less /var/log/inception.log
 ```
+
+Confirm that Inception is running:
+```
+ps aux | grep inception
+ ```
