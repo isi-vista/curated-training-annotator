@@ -1,3 +1,4 @@
+admin_username: "ashwin_kumar"
 json_template_path: "./project_template.json"
 type_system_path: "TypeSystem.xml"
 cas_xmi_template_path: "cas_xmi_template.xmi"
@@ -11,5 +12,5 @@ corpus_paths: ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\Engli
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"]
-user_list: ["test_user"]
-event_list: ["Movement.Transport"]
+user_list: ["gabbard", "laura_godlaski" ,"liz_lee"]
+event_list: ["All"]

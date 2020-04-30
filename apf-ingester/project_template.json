@@ -5,16 +5,7 @@
   "version" : 1,
   "source_documents" : [ ],
   "annotation_documents" : [ ],
-  "project_permissions" : [ {
-	"level" : "ADMIN",
-	"user" : "admin"
-  }, {
-	"level" : "CURATOR",
-	"user" : "admin"
-  }, {
-	"level" : "USER",
-	"user" : "admin"
-  } ],
+  "project_permissions" : [ ],
   "tag_sets" : [ {
 	"name" : "CTEventSpanTypes",
 	"typeUiName" : null,
