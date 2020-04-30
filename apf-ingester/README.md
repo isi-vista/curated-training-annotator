@@ -17,18 +17,18 @@ and run `apf_ingester.py` with `apf_ingester_parameters.params` as the argument.
 - Run `apf_ingester.py` with the parameters file to generate desired projects
 
 # Sample Parameters File (`apf_ingester_parameters.params`):
-`json_template_path: "./project_template.json"
-type_system_path: "TypeSystem.xml"
-cas_xmi_template_path: "cas_xmi_template.xmi"
-annotation_ser_path: ".\\cached_annotation_ser\\"
-cached_xmi_path: ".\\cached_xmi\\"
-cached_ace_data_path: "C:\\isi\\apf_ingester\\cached_ace_files\\"
-output_dir_path: "C:\\isi\\apf_ingester\\apf_ingester_output\\"
-corpus_paths: ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",
-               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",
-               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",
-               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
-               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
-               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"]
-user_list: ["user1" ,"user2"]
-event_list: ["All"]`
+`json_template_path: "./project_template.json"`  
+`type_system_path: "TypeSystem.xml"`  
+`cas_xmi_template_path: "cas_xmi_template.xmi"`  
+`annotation_ser_path: ".\\cached_annotation_ser\\"`  
+`cached_xmi_path: ".\\cached_xmi\\"`  
+`cached_ace_data_path: "C:\\isi\\apf_ingester\\cached_ace_files\\"`  
+`output_dir_path: "C:\\isi\\apf_ingester\\apf_ingester_output\\"`  
+`corpus_paths: ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bc\\adj\\",`  
+`               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\bn\\adj\\",`  
+`               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\cts\\adj\\",`  
+`               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",`  
+`               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",`  
+`               "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"]`  
+`user_list: ["user1" ,"user2"]`  
+`event_list: ["All"]`  
