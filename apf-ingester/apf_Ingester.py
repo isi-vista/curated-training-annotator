@@ -26,7 +26,7 @@ def cleanup_source_document(sgm_path: str) -> None:
         sgm_string = sgm_file.read()
 
     # Replace CRLF EOLs with LF
-    sgm_string = re.sub(r'<.*?>',  '', sgm_string.replace("\r\n", "\n"))
+    sgm_string = re.sub(r'<[\s\S]*?>',  '', sgm_string.replace("\r\n", "\n"))
 
     with open(sgm_path, 'w') as sgm_file:
         sgm_file.write(sgm_string)

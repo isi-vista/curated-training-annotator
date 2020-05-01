@@ -11,5 +11,5 @@ corpus_paths: ["C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\Engli
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\nw\\adj\\",
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\un\\adj\\",
                "C:\\isi\\curated-training-annotator\\ace_2005_td_v7\\data\\English\\wl\\adj\\"]
-user_list: ["gabbard", "laura_godlaski" ,"liz_lee"]
+user_list: ["admin", "laura_godlaski", "liz_lee"]
 event_list: ["All"]

@@ -22,12 +22,14 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
     with open(source_sgm_path, 'r', encoding='utf-8') as source_file:
         cas.sofa_string = process_string_and_remove_tags(source_file.read())
 
+    """ This is unnecessary as Inception auto-generates tokens (this also causes errors)  
     # Add all word offsets from the source sgm file
     Token = typesystem.get_type('de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token')
     for word, begin, end in tokenize_words(source_sgm_path):
         # end is end+1 due to inception's end offset counting method
         token = Token(begin=begin, end=end + 1, order='0')
         cas.add_annotation(token)
+    """
 
     """
     # Code to import entity mentions and its entity_type
@@ -78,6 +80,7 @@ def serialize_cas_to_xmi(output_path: str, cas_to_serialize):
     cas_serializer.serialize(output_path, cas=cas_to_serialize)
 
 
+# Deprecated
 def tokenize_words(source_string_path: str):
     with codecs.open(source_string_path, mode='r', encoding='utf-8') as a_source_file:
         source_file_text = a_source_file.read()
@@ -90,7 +93,7 @@ def tokenize_words(source_string_path: str):
 def process_string_and_remove_tags(raw_string: str):
     """Removes tags and converts newlines to match ace offsets alignment"""
     raw_string = raw_string.replace('\r\n', '\n')
-    return re.sub(r'<(.*?)>', '', raw_string)
+    return re.sub(r'<[\s\S]*?>', '', raw_string)
 
 
 def get_apf_entities_to_list(apf_path: str):
