@@ -11,6 +11,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.io.IOException;
 
 /**
  * Puts the document text back into the 'sofaString' field inside json files created by `ExportAnnotations.kt`
@@ -47,11 +48,14 @@ class RestoreJson {
             // Make objects for reading, parsing, and writing json:
             val objectMapper = ObjectMapper()
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
-            val textSource = makeTextSource(params)
+            val gigaWordTextSource = makeTextSource(params, 'gigaword')
+            val aceTextSource = makeTextSource(params, 'ace')
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
-                if (filename.contains(Regex("[\b_]ENG[\b_]"))) {
+                //returns docID if ace file, else returns an empty string
+                val aceDocID = getAceDocID(filename)
+                if (filename.contains(Regex("[\b_]ENG[\b_]")) || aceDocID.isNotEmpty()) {
                     // The project directory is the path to this file with the input directory components
                     // stripped off the front, then joined with the desired output directory.
                     val projectOutDir = Paths.get(
@@ -62,11 +66,25 @@ class RestoreJson {
                         Files.createDirectories(projectOutDir)
                     }
                     val jsonTree = objectMapper.readTree(jsonFile)
-                    // First 21 characters of the filename are the document id
-                    // Example filename is AFP_ENG_19960918.0012-admin.json
-                    val docID = Symbol.from(filename.substring(0, 21))
-                    val text = textSource.getOriginalText(docID).orNull()
-                            ?: throw RuntimeException("Could not get original text for $docID")
+                    var text = ""
+                    // If aceDocID is empty, it means the document being processed is not an
+                    // ace document
+                    if(aceDocID.isNotEmpty()) {
+                        // If it is an Ace doc: Filename contains event_type.subtype
+                        // Example Filename is:
+                        // CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
+                        val docID = Symbol.from(aceDocID)
+                        text = aceTextSource.getOriginalText(docID).orNull()
+                                ?: throw RuntimeException("Could not get original text for $docID")
+                    } else {
+                        // If it is a Gigaword doc: First 21 characters of the filename are the
+                        // document id
+                        // Example filename is AFP_ENG_19960918.0012-admin.json
+                        val docID = Symbol.from(filename.substring(0, 21))
+                        text = gigaWordTextSource.getOriginalText(docID).orNull()
+                                ?: throw RuntimeException("Could not get original text for $docID")
+                    }
+
                     jsonTree.replaceFieldEverywhere("sofaString", text)
                     val outFile = File(projectOutDir.toString(), filename)
                     outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
@@ -79,15 +97,24 @@ class RestoreJson {
     }
 }
 
-fun makeTextSource(params: Parameters): OriginalTextSource {
+fun makeTextSource(params: Parameters, corpusName: String): OriginalTextSource {
     // Create an OriginalTextSource for getting original document text to put in json:
-    val textMap = DocIDToFileMappings.forFunction { symbol ->
-        Optional.of(File(params.getExistingDirectory("gigawordDataDirectory"), docIDToFilename(symbol)))
+    if(corpusName.equals("gigaword", ignoreCase = true)) {
+        // Create the gigaword corpus TextSource
+        val textMap = DocIDToFileMappings.forFunction { symbol ->
+            Optional.of(File(params.getExistingDirectory("gigawordDataDirectory"), docIDToFilename(symbol)))
+        }
+        val indexMap = DocIDToFileMappings.forFunction { symbol ->
+            Optional.of(File(params.getExistingDirectory("indexDirectory"), docIDToFilename(symbol) + ".index"))
+        }
+        return OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
+
+    } else if (corpusName.equals("ace", ignoreCase = true)) {
+        // Create the Ace corpus TextSource
+        return AceCorpusTextSource(params.getExistingDirectory("aceEngDataDirectory"))
+    } else {
+        throw IOException("A corpus: " + corpusName + " does not exist.");
     }
-    val indexMap = DocIDToFileMappings.forFunction { symbol ->
-        Optional.of(File(params.getExistingDirectory("indexDirectory"), docIDToFilename(symbol) + ".index"))
-    }
-    return OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
 }
 
 fun docIDToFilename(symbol: Symbol?): String {
@@ -106,4 +133,17 @@ private fun Path.removePrefixPath(prefix: Path): Path {
         "The path $this does not start with the prefix $prefix"
     }
     return this.subpath(prefix.nameCount, this.nameCount)
+}
+
+private fun getAceDocID(filename: String): String {
+    // Returns empty string if not an AceFileName
+    // Ace filenames contain an event.subtype in the file name
+    // Example: CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
+    val regex = """(.*_[^a-zA-Z]*)-(.*?)-.*?""".toRegex()
+    if (regex.containsMatchIn(filename)) {
+        val matchResult = regex.find(filename)
+        return matchResult!!.groups[1]!!.value
+    } else {
+        return ""
+    }
 }

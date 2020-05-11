@@ -52,7 +52,7 @@
 
 		<skipITs>true</skipITs>
 
-        <kotlin.version>1.3.21</kotlin.version>
+        <kotlin.version>1.3.72</kotlin.version>
     </properties>
 
 	<repositories>
@@ -153,6 +153,20 @@
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
 		<pluginManagement>
