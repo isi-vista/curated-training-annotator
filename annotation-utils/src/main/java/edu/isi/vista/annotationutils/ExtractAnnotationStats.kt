@@ -83,7 +83,6 @@ class ExtractAnnotationStats {
 
                         if (it.isFile) {
                             val folder = it.parent
-                            logger.info { "Folder: $folder"}
                             // Get the username from the parent directory
                             // by finding the characters after the pattern "type.subtype-"
                             // e.g. Conflict.Attack-(gabbard)
