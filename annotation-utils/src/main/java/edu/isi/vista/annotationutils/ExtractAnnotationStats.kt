@@ -86,17 +86,31 @@ class ExtractAnnotationStats {
                             // Get the username from the parent directory
                             // by finding the characters after the pattern "type.subtype-"
                             // e.g. Conflict.Attack-(gabbard)
-                            val userPattern = Regex(pattern = """\.\w+-(\w+)""")
-                            val user = userPattern
-                                    .find(input = folder)!!.groupValues[1]
-                            // Get the event type from the parent directory
-                            // by finding the characters before the pattern "-username"
-                            // e.g. (Conflict.Attack)-gabbard
-                            // Some directory names include an additional word or phrase (\w*?\.?)
-                            // or a language indicator (w*?-?)
-                            val eventTypePattern = Regex(pattern = """\w+?-?\w+\.?\w+\.\w+""")
-                            val eventType = eventTypePattern
-                                    .find(input = folder)!!.value
+                            // An ACE file could have two directory name formats:
+                            // 1. ACE-Event.Type-username
+                            // 2. ACE-Hyphenated.Event-Type-username
+                            val aceHyphenatedPattern = Regex(pattern = """(ACE-\w+\.\w+-\w+)-(\w+)""")
+                            val user: String?
+                            val eventType: String?
+                            if (folder.contains(aceHyphenatedPattern)) {
+                                eventType = aceHyphenatedPattern
+                                        .find(input = folder)!!.groupValues[1]
+                                user = aceHyphenatedPattern
+                                        .find(input = folder)!!.groupValues[2]
+                            }
+                            else {
+                                val userPattern = Regex(pattern = """\.\w+-(\w+)""")
+                                user = userPattern
+                                        .find(input = folder)!!.groupValues[1]
+                                // Get the event type from the parent directory
+                                // by finding the characters before the pattern "-username"
+                                // e.g. (Conflict.Attack)-gabbard
+                                // Some directory names include an additional word or phrase (\w*?\.?)
+                                // or a language indicator (w*?-?)
+                                val eventTypePattern = Regex(pattern = """\w+?-?\w+\.?\w+\.\w+""")
+                                eventType = eventTypePattern
+                                        .find(input = folder)!!.value
+                            }
                             if (user.isBlank() || eventType.isBlank()) {
                                 throw RuntimeException(
                                         "Missing annotation information (user/subtype) for $it")
