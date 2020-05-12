@@ -169,10 +169,10 @@ class ExportAnnotations {
                         ZipFile(annotationsInMemoryZip).use {
                             // filename manipulation is to work around
                             // https://github.com/inception-project/inception/issues/1174
-                            val firstDotInDocumentNameIndex = document.name.indexOf('.')
+                            val lastDotInDocumentNameIndex = document.name.lastIndexOf('.')
                             // note documents cannot have empty names
-                            val zipEntryName = if (firstDotInDocumentNameIndex >= 0) {
-                                document.name.substring(0, firstDotInDocumentNameIndex)
+                            val zipEntryName = if (lastDotInDocumentNameIndex >= 0) {
+                                document.name.substring(0, lastDotInDocumentNameIndex)
                             } else {
                                 document.name
                             }
