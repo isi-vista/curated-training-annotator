@@ -1,10 +1,11 @@
 package edu.isi.vista.annotationutils;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 import edu.isi.nlp.symbols.Symbol;
 import com.google.common.base.Optional;
 import edu.isi.nlp.io.OriginalTextSource;
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
 
@@ -19,7 +20,7 @@ public final class AceCorpusTextSource implements OriginalTextSource{
         for (File sourceDir : sourceFileDirectories){
             File sourceDocFile = new File(sourceDir, docID.toString() + ".sgm");
             if(sourceDocFile.exists()) {
-                rawSourceText = Files.readString(sourceDocFile.toPath());
+                rawSourceText = Files.asCharSource(sourceDocFile, Charsets.UTF_8).read();
                 break;
             }
         }
