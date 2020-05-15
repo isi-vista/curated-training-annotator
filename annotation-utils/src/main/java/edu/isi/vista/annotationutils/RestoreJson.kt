@@ -50,12 +50,10 @@ class RestoreJson {
             val objectMapper = ObjectMapper()
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
             val gigaWordTextSource = makeTextSource(params, "gigaword")
-            // Change: AceTextSource added
             val aceTextSource = makeTextSource(params, "ace")
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
-                //Change: this entire codeblock has been modified (until the 'Change: end' comment)
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
                 if (filename.contains(Regex("[\b_]ENG[\b_]")) || aceDocID != null) {
@@ -86,7 +84,6 @@ class RestoreJson {
                         gigaWordTextSource.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
                     }
-                    // Change: end of this block of changes
                     jsonTree.replaceFieldEverywhere("sofaString", text)
                     val outFile = File(projectOutDir.toString(), filename)
                     outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
@@ -137,9 +134,7 @@ private fun Path.removePrefixPath(prefix: Path): Path {
     return this.subpath(prefix.nameCount, this.nameCount)
 }
 
-//Change: This function was added. Note: after some discussion with Liz, this regex seemed the best
-// option to differentiate ace and giga-word documents. (Although currently ace documents have
-// xmi, in their name, using this to differentiate would not be future-proof)
+
 private fun getAceDocID(filename: String): String? {
     // Returns empty string if not an AceFileName
     // Ace filenames contain an event.subtype in the file name
