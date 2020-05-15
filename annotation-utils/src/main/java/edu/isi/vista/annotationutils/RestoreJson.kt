@@ -55,8 +55,7 @@ class RestoreJson {
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
-                //Change: this entire codeblock has been modified (until the end of the outermost
-                // if-statement)
+                //Change: this entire codeblock has been modified (until the 'Change: end' comment)
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
                 if (filename.contains(Regex("[\b_]ENG[\b_]")) || aceDocID != null) {
@@ -87,7 +86,7 @@ class RestoreJson {
                         gigaWordTextSource.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
                     }
-
+                    // Change: end of this block of changes
                     jsonTree.replaceFieldEverywhere("sofaString", text)
                     val outFile = File(projectOutDir.toString(), filename)
                     outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
