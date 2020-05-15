@@ -8,10 +8,11 @@ import copy
 from vistautils.parameters import Parameters
 from vistautils.parameters_only_entrypoint import parameters_only_entry_point
 from typing import AbstractSet, Any, Dict, List, MutableMapping, Optional, Tuple, Type
+from pathlib import Path
 
 
 def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: str,
-                        output_dir_path: str, typesystem, cas_template):
+                        output_dir_path: Path, typesystem, cas_template):
     """Create cas from apf file then converts and deserializes the apf to an xmi file."""
     # Do not edit template directly, make a copy
     cas = copy.deepcopy(cas_template)
@@ -22,11 +23,11 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
     with open(source_sgm_path, 'r', encoding='utf-8') as source_file:
         cas.sofa_string = process_string_and_remove_tags(source_file.read())
 
-    """ This is unnecessary as Inception auto-generates tokens (this also causes errors)  
+    """ This is unnecessary as Inception auto-generates tokens (this also causes errors)
     # Add all word offsets from the source sgm file
     Token = typesystem.get_type('de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token')
     for word, begin, end in tokenize_words(source_sgm_path):
-        # end is end+1 due to inception's end offset counting method
+        # end is end+1 due to inception is not end-inclusive
         token = Token(begin=begin, end=end + 1, order='0')
         cas.add_annotation(token)
     """
@@ -72,12 +73,12 @@ def create_cas_from_apf(*, apf_filename: str, apf_path: str, source_sgm_path: st
 
         # Serialize the final cas to xmi to the output directory with the same filename as the apf
         output_file_name = apf_filename.replace(".apf.xml", "-" + event_type_entry + ".xmi")
-        serialize_cas_to_xmi(output_dir_path + output_file_name, temp_cas)
+        serialize_cas_to_xmi(output_dir_path / output_file_name, temp_cas)
 
 
-def serialize_cas_to_xmi(output_path: str, cas_to_serialize):
+def serialize_cas_to_xmi(output_path: Path, cas_to_serialize):
     cas_serializer = CasXmiSerializer()
-    cas_serializer.serialize(output_path, cas=cas_to_serialize)
+    cas_serializer.serialize(str(output_path), cas=cas_to_serialize)
 
 
 # Deprecated
@@ -165,16 +166,16 @@ def get_apf_events_to_list(apf_path: str):
 def main(params: Parameters):
     # create_cas_from_apf(TEST_APF_PATH, TEST_SGM_PATH, OUTPUT_DIR_PATH)
     corpus_paths = params.arbitrary_list("corpus_paths")
-    output_xmi_dir_path = params.string("cached_xmi_path")
-    type_system_path = params.string("type_system_path")
-    cas_xmi_template_path = params.string("cas_xmi_template_path")
+    output_xmi_dir_path = params.creatable_directory("cached_xmi_path")
+    type_system_path = params.existing_file("type_system_path")
+    cas_xmi_template_path = params.existing_file("cas_xmi_template_path")
 
     # Load Typesystem
-    with open(type_system_path, 'rb') as file:
+    with type_system_path.open('rb') as file:
         typesystem = load_typesystem(file)
 
     # Load xmi_template
-    with open(cas_xmi_template_path, 'rb') as cas_xmi_file:
+    with cas_xmi_template_path.open('rb') as cas_xmi_file:
         cas_template = load_cas_from_xmi(cas_xmi_file, typesystem=typesystem)
 
     for ace_corpus_path in corpus_paths:
