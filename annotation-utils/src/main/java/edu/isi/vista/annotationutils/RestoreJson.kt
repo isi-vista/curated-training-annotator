@@ -148,6 +148,7 @@ private fun getAceDocID(filename: String): String? {
     val regex = """(.*_[^a-zA-Z]*)-(.*?)-.*?""".toRegex()
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
+        //Returns only the event.subtype as a string
         return matchResult!!.groups[1]!!.value
     }
     return null
