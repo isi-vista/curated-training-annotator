@@ -1,0 +1,10 @@
+#Pycharm
+.idea/
+
+#Cached data
+cached_ace_files/
+cached_annotation_ser/
+cached_xmi/
+
+#Outputs
+apf_ingester_output/
