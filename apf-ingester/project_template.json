@@ -17,7 +17,10 @@
 	"tags" : [ {
 	    "tag_name" : "interesting",
 	    "tag_description" : null
-	  } ],
+	}, {
+		"tag_name" : "trigger",
+		"tag_description" : null
+	} ],
 	"create_tag" : false
   } ],
   "layers" : [ {
