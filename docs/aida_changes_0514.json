@@ -1,0 +1,10 @@
+{
+  "Contact.CommandOrder": ["Topic"],
+  "Contact.CommitmentPromiseExpressIntent": ["Topic"],
+  "Contact.Negotiate": ["Topic"],
+  "Contact.Prevarication": ["Topic"],
+  "Contact.RequestAdvise": ["Topic"],
+  "Contact.ThreatenCoerce": ["Topic"],
+  "Life.Die": ["Killer", "MedicalIssue"],
+  "Life.Injure": ["Injurer", "MedicalIssue"]
+}
