@@ -58,6 +58,7 @@ class ExtractAnnotationStats {
             val sortedEventTypes = annotationCountsByEventType.toSortedMap()
             val sortedPositiveCorpora = positiveAnnotationCountsByCorpus.toSortedMap()
             val sortedNegativeCorpora = negativeAnnotationCountsByCorpus.toSortedMap()
+
             val newAnnotationStats = AnnotationStats(
                     totalAnnotations, sortedUsers, sortedEventTypes, sortedPositiveCorpora, sortedNegativeCorpora
             )
