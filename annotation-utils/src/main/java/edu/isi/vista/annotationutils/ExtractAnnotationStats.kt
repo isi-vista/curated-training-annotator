@@ -37,13 +37,7 @@ class ExtractAnnotationStats {
             val formatter = SimpleDateFormat("yyyy-MM-dd")
             val thisDate = formatter.format(currentDate.getTime())
 
-            // val documentsWithEventAnnotations: MutableList<DocumentAnnotation> = collectStats(exportAnnotationRoot)
             val sentencesWithEventAnnotations: MutableList<SentenceAnnotation> = collectStats(exportAnnotationRoot)
-
-            // From documentsWithEventAnnotations, get TOTAL, TOTAL PER USER and TOTAL PER EVENT TYPE
-//            val totalAnnotations = documentsWithEventAnnotations.size
-//            val annotationsByUser = documentsWithEventAnnotations.countBy { it.user }
-//            val annotationsByEventType = documentsWithEventAnnotations.countBy { it.eventType }
 
             // From sentencesWithEventAnnotations, got TOTAL, TOTAL PER USER, EVENT TYPE, AND CORPUS
             val positiveSentences = sentencesWithEventAnnotations.filter { !it.negativeExample }
@@ -53,7 +47,6 @@ class ExtractAnnotationStats {
             val annotationsByEventType = sentencesWithEventAnnotations.countBy { it.eventType }
             val positiveAnnotationsByCorpus = positiveSentences.countBy { it.corpus }
             val negativeAnnotationsByCorpus = negativeSentences.countBy { it.corpus }
-            logger.info("Negative annotations: $negativeAnnotationsByCorpus")
 
             // For better organization
             val sortedUsers = annotationsByUser.toSortedMap()
@@ -140,9 +133,6 @@ class ExtractAnnotationStats {
                                 val eventTypePattern = Regex(pattern = """\w+?-?\w+\.?\w+\.\w+""")
                                 eventType = eventTypePattern
                                         .find(input = folder)!!.value
-                                if (eventType.contains("SymptomOf")) {
-                                    logger.info("YAY!")
-                                }
                                 corpus = if (folder.contains("russian")) {
                                     "Russian"
                                 } else if (folder.contains("spanish")) {
@@ -158,13 +148,14 @@ class ExtractAnnotationStats {
                             val documentName: String = it.name
                             // TODO: count events rather than annotated documents
                             // https://github.com/isi-vista/curated-training-annotator/issues/41
-                            // val jsonString: String = it.readText()
-                            // val regex = Regex(pattern = """"CTEventSpan" : \[""")
                             val jsonTree = ObjectMapper().readTree(it) as ObjectNode
-                            val documentRelations = jsonTree["_views"]["_InitialView"]["CTEventSpanType"]
-                            var documentTriggers = listOf<JsonNode>()
-                            val documentSentences = jsonTree["_views"]["_InitialView"]["Sentence"]
                             val documentSpans = jsonTree["_referenced_fss"]
+                            val documentSentences = jsonTree["_views"]["_InitialView"]["Sentence"]
+                            val documentRelations = jsonTree["_views"]["_InitialView"]["CTEventSpanType"]
+                            // We determine the triggers because these indicate if the
+                            // sentence is negative, and it's faster than
+                            // running through each span.
+                            var documentTriggers = listOf<JsonNode>()
                             if (documentRelations == null) {
                                 // Try CTEventSpan
                                 val ctEventSpan = jsonTree["_views"]["_InitialView"]["CTEventSpan"]
@@ -174,46 +165,53 @@ class ExtractAnnotationStats {
                             } else {
                                 documentTriggers = getPrimaryTriggers(documentRelations, documentSpans)
                             }
-                            if (documentTriggers != null) {
-                                // This document contains annotations
-                                // docsList.add(DocumentAnnotation(documentName, user, eventType))
-
-                                for (trigger in documentTriggers) {
-                                    val triggerBegin = if (trigger["begin"] == null) {
-                                        // Some trigger objects may not have a "begin" field.
-                                        // This is because in some corpus documents,
-                                        // the first word is markable.
-                                        trigger["sofa"].toString().toInt()
+                            // Keep track of sentences that have already been counted.
+                            // Multiple triggers may appear in the same sentence, so we
+                            // want to avoid duplicate instances.
+                            // This will be populated with sentence IDs for this document.
+                            val documentAnnotatedSentences = mutableSetOf<String>()
+                            for (trigger in documentTriggers) {
+                                val triggerBegin = if (trigger["begin"] == null) {
+                                    // Some trigger objects may not have a "begin" field.
+                                    // This is because in some corpus documents,
+                                    // the first token is markable, so the "sofa"
+                                    // serves as the starting index.
+                                    trigger["sofa"].toString().toInt()
+                                } else {
+                                    trigger["begin"].toString().toInt()
+                                }
+                                for (sentence in documentSentences) {
+                                    val sentenceBegin = if (sentence["begin"] == null) {
+                                        sentence["sofa"].toString().toInt()
                                     } else {
-                                        trigger["begin"].toString().toInt()
+                                        sentence["begin"].toString().toInt()
                                     }
-                                    for (sentence in documentSentences) {
-                                        var sentenceBegin = 1
-                                        if (sentence.size() >= 3)
-                                            sentenceBegin = sentence["begin"].toString().toInt()
-                                        val sentenceID = "$documentName-$sentenceBegin"
-                                        // If the given trigger is in a sentence, add the sentence
-                                        // to the sentence list, including whether it's a negative example
-                                        if (
-                                                (triggerBegin >= sentenceBegin)
-                                                and (trigger["end"].toString().toInt() <= sentence["end"].toString().toInt())
-                                        ) {
-                                            if (trigger["negative_example"].toString() == "true") {
-                                                sentenceList.add(
-                                                        SentenceAnnotation(
-                                                                sentenceID, user, eventType, corpus, true
-                                                        )
-                                                )
-                                            } else {
-                                                sentenceList.add(
-                                                        SentenceAnnotation(
-                                                                sentenceID, user, eventType, corpus, false
-                                                        )
-                                                )
-                                            }
-                                            // We've found the sentence of our trigger
+                                    val sentenceEnd = sentence["end"].toString().toInt()
+                                    val sentenceID = "$documentName-$sentenceBegin"
+                                    // If the given trigger is in a sentence, add the sentence
+                                    // to the sentence list, including whether it's a negative example
+                                    if (
+                                            (triggerBegin >= sentenceBegin)
+                                            and (trigger["end"].toString().toInt() <= sentenceEnd)
+                                    ) {
+                                        if (documentAnnotatedSentences.contains(sentenceID)) {
                                             break
+                                        } else if (trigger["negative_example"].toString() == "true") {
+                                            sentenceList.add(
+                                                    SentenceAnnotation(
+                                                            sentenceID, user, eventType, corpus, true
+                                                    )
+                                            )
+                                        } else {
+                                            sentenceList.add(
+                                                    SentenceAnnotation(
+                                                            sentenceID, user, eventType, corpus, false
+                                                    )
+                                            )
                                         }
+                                        documentAnnotatedSentences.add(sentenceID)
+                                        // We've found the sentence of our trigger
+                                        break
                                     }
                                 }
                             }
@@ -230,22 +228,27 @@ class ExtractAnnotationStats {
             val governors: MutableSet<String> = mutableSetOf()
             val primaryTriggers: MutableSet<JsonNode> = mutableSetOf()
             for (relation in relations) {
-                dependents.add(relation["Dependent"].toString())
-                governors.add(relation["Governor"].toString())
+                val relationDependent = relation["Dependent"].toString()
+                val relationGovernor = relation["Governor"].toString()
+                // The only time a governor is also a primary trigger
+                // is when it serves as an argument of itself.
+                // It may actually be a secondary trigger, but in that case
+                // it should share the same sentence as the
+                // primary one, so filtering these out is low-priority.
+                // We want to ensure that such primary triggers aren't excluded.
+                if (relationDependent == relationGovernor) {
+                    primaryTriggers.add(spans[relationDependent])
+                } else {
+                    dependents.add(relationDependent)
+                    governors.add(relationGovernor)
+                }
             }
             for (dependent in dependents) {
-                // A trigger is a primary trigger
-                // if it is never a governor
+                // A trigger is a primary trigger if it is
+                // never a governor (or case mentioned above)
                 if (!governors.contains(dependent)) {
                     primaryTriggers.add(spans[dependent])
                 }
-            }
-            if (dependents.size == 1) {
-                // The primary trigger may serve as an argument of itself
-                primaryTriggers.add(spans[dependents.first()])
-            }
-            if (primaryTriggers.isEmpty()) {
-                logger.error { "No primary triggers found! Relations: $relations" }
             }
             return primaryTriggers.toList()
         }
@@ -350,7 +353,7 @@ class ExtractAnnotationStats {
                 body {
                     h2 { +"Annotation Statistics - ${newStatsReport.date}"}
                     if (previousStatsReport != null) {
-                        h4 { +"Includes new annotations since ${previousStatsReport.date}"}
+                        h4 { +"Includes new annotated sentences since ${previousStatsReport.date}"}
                     }
                     table {
                         tr {
@@ -414,8 +417,8 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"User"}
-                            th {+"Annotations"}
-                            th {+"New annotations"}
+                            th {+"Sentences"}
+                            th {+"New sentences"}
                         }
                         for (user in newAnnotationStats.byUser.keys) {
                             tr {
@@ -436,8 +439,8 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"Event type"}
-                            th {+"Annotations"}
-                            th {+"New annotations"}
+                            th {+"Sentences"}
+                            th {+"New sentences"}
                         }
                         for (eventType in newAnnotationStats.byEventType.keys) {
                             tr {
@@ -474,7 +477,6 @@ class ExtractAnnotationStats {
     }
 }
 
-data class DocumentAnnotation(val documentName: String, val user: String, val eventType: String)
 data class SentenceAnnotation(
         val sentence_id: String,
         val user: String,
@@ -482,7 +484,6 @@ data class SentenceAnnotation(
         val corpus: String,
         val negativeExample: Boolean
 )
-data class EventSpan(val dependent: Int, val governor: Int, val relation_type: String)
 data class AnnotationStats(
         val total: Int,
         val byUser: Map<String, Int?>,
