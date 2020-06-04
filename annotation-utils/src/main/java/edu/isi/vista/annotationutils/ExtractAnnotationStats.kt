@@ -18,6 +18,10 @@ import java.util.*
  * statistics from the exported JSON, and they will get pushed along with
  * the updated annotation files.
  */
+
+const val INTERESTING_ROLE = "\"interesting\""
+const val TRIGGER_ROLE = "\"trigger\""
+
 class ExtractAnnotationStats {
     companion object {
         fun main(argv: Array<String>) {
@@ -104,7 +108,7 @@ class ExtractAnnotationStats {
                             // An ACE file could have two directory name formats:
                             // 1. ACE-Event.Type-username
                             // 2. ACE-Hyphenated.Event-Type-username
-                            val aceHyphenatedPattern = Regex(pattern = """(ACE-\w+\.\w+-\w+)-(\w+)""")
+                            val aceHyphenatedPattern = Regex(pattern = """(ACE-\w+\.\w+-?\w+)-(\w+)""")
                             val user: String?
                             val eventType: String?
                             // Our current corpora are
@@ -146,39 +150,44 @@ class ExtractAnnotationStats {
                                         "Missing annotation information (user/subtype) for $it")
                             }
                             val documentName: String = it.name
-                            // TODO: count events rather than annotated documents
+                            // TODO: count events rather than annotated sentences
                             // https://github.com/isi-vista/curated-training-annotator/issues/41
                             val jsonTree = ObjectMapper().readTree(it) as ObjectNode
                             val documentSpans = jsonTree["_referenced_fss"]
                             val documentSentences = jsonTree["_views"]["_InitialView"]["Sentence"]
                             val documentRelations = jsonTree["_views"]["_InitialView"]["CTEventSpanType"]
-                            // We determine the triggers because these indicate if the
-                            // sentence is negative, and it's faster than
-                            // running through each span.
-                            var documentTriggers = listOf<JsonNode>()
+                            // For ACE projects, a "significant span" is a clue word or
+                            // secondary trigger.
+                            // For all other projects, it is a primary trigger or negative span.
+                            // We determine the "significant spans" because
+                            // these indicate if the sentence is negative, and it's faster than
+                            // running through each span to find the annotated sentences.
+                            var significantDocumentSpans = listOf<JsonNode>()
                             if (documentRelations == null) {
                                 // Try CTEventSpan
                                 val ctEventSpan = jsonTree["_views"]["_InitialView"]["CTEventSpan"]
-                                if (ctEventSpan != null){
-                                    documentTriggers = ctEventSpan.toList()
+                                if (ctEventSpan != null && corpus != "ACE"){
+                                    significantDocumentSpans = ctEventSpan.toList()
                                 }
+                            } else if (corpus == "ACE") {
+                                significantDocumentSpans = getAceAdditions(documentRelations, documentSpans)
                             } else {
-                                documentTriggers = getPrimaryTriggers(documentRelations, documentSpans)
+                                significantDocumentSpans = getPrimarySpans(documentRelations, documentSpans)
                             }
                             // Keep track of sentences that have already been counted.
                             // Multiple triggers may appear in the same sentence, so we
                             // want to avoid duplicate instances.
                             // This will be populated with sentence IDs for this document.
                             val documentAnnotatedSentences = mutableSetOf<String>()
-                            for (trigger in documentTriggers) {
-                                val triggerBegin = if (trigger["begin"] == null) {
-                                    // Some trigger objects may not have a "begin" field.
+                            for (significantSpan in significantDocumentSpans) {
+                                val spanBegin = if (significantSpan["begin"] == null) {
+                                    // Some span objects may not have a "begin" field.
                                     // This is because in some corpus documents,
                                     // the first token is markable, so the "sofa"
                                     // serves as the starting index.
-                                    trigger["sofa"].toString().toInt()
+                                    significantSpan["sofa"].toString().toInt()
                                 } else {
-                                    trigger["begin"].toString().toInt()
+                                    significantSpan["begin"].toString().toInt()
                                 }
                                 for (sentence in documentSentences) {
                                     val sentenceBegin = if (sentence["begin"] == null) {
@@ -188,15 +197,15 @@ class ExtractAnnotationStats {
                                     }
                                     val sentenceEnd = sentence["end"].toString().toInt()
                                     val sentenceID = "$documentName-$sentenceBegin"
-                                    // If the given trigger is in a sentence, add the sentence
+                                    // If the given span is in a sentence, add the sentence
                                     // to the sentence list, including whether it's a negative example
                                     if (
-                                            (triggerBegin >= sentenceBegin)
-                                            and (trigger["end"].toString().toInt() <= sentenceEnd)
+                                            (spanBegin >= sentenceBegin)
+                                            and (significantSpan["end"].toString().toInt() <= sentenceEnd)
                                     ) {
                                         if (documentAnnotatedSentences.contains(sentenceID)) {
                                             break
-                                        } else if (trigger["negative_example"].toString() == "true") {
+                                        } else if (significantSpan["negative_example"].toString() == "true") {
                                             sentenceList.add(
                                                     SentenceAnnotation(
                                                             sentenceID, user, eventType, corpus, true
@@ -210,7 +219,7 @@ class ExtractAnnotationStats {
                                             )
                                         }
                                         documentAnnotatedSentences.add(sentenceID)
-                                        // We've found the sentence of our trigger
+                                        // We've found the sentence of our span
                                         break
                                     }
                                 }
@@ -221,36 +230,57 @@ class ExtractAnnotationStats {
         }
 
         /**
-         * Determine which spans are trigger spans
+         * Determine which spans in an ACE document are clue words
+         * or secondary triggers - these have been added by an annotator.
          */
-        private fun getPrimaryTriggers(relations: JsonNode, spans: JsonNode): List<JsonNode> {
+        private fun getAceAdditions(relations: JsonNode, spans: JsonNode): List<JsonNode> {
+            val addedSpans: MutableSet<JsonNode> = mutableSetOf()
+            for (relation in relations) {
+                val relationType = if (relation["relation_type"] == null) {
+                    // Hack for some older ACE documents where
+                    // no label was added to clue words
+                    INTERESTING_ROLE
+                } else {
+                    relation["relation_type"].toString()
+                }
+                if (relationType == INTERESTING_ROLE || relationType == TRIGGER_ROLE) {
+                    addedSpans.add(spans[relation["Governor"].toString()])
+                }
+            }
+            return addedSpans.toList()
+        }
+
+        /**
+         * Determine which spans are trigger spans
+         *
+         * Input should not include singleton spans
+         * (i.e. the input spans here should all be part of relations).
+         * Spans not in relations are collected by another method.
+         */
+        private fun getPrimarySpans(relations: JsonNode, spans: JsonNode): List<JsonNode> {
             val dependents: MutableSet<String> = mutableSetOf()
             val governors: MutableSet<String> = mutableSetOf()
-            val primaryTriggers: MutableSet<JsonNode> = mutableSetOf()
+            val primarySpans: MutableSet<JsonNode> = mutableSetOf()
             for (relation in relations) {
                 val relationDependent = relation["Dependent"].toString()
                 val relationGovernor = relation["Governor"].toString()
-                // The only time a governor is also a primary trigger
-                // is when it serves as an argument of itself.
-                // It may actually be a secondary trigger, but in that case
-                // it should share the same sentence as the
-                // primary one, so filtering these out is low-priority.
-                // We want to ensure that such primary triggers aren't excluded.
-                if (relationDependent == relationGovernor) {
-                    primaryTriggers.add(spans[relationDependent])
-                } else {
-                    dependents.add(relationDependent)
+                // A span is a primary trigger if it
+                // depends on nothing or itself.
+                // We prevent spans from being added to
+                // the "governors" list to ensure that
+                // triggers which serve as their own
+                // arguments are still considered primary triggers.
+                dependents.add(relationDependent)
+                if (relationDependent != relationGovernor) {
                     governors.add(relationGovernor)
                 }
             }
             for (dependent in dependents) {
-                // A trigger is a primary trigger if it is
-                // never a governor (or case mentioned above)
                 if (!governors.contains(dependent)) {
-                    primaryTriggers.add(spans[dependent])
+                    primarySpans.add(spans[dependent])
                 }
             }
-            return primaryTriggers.toList()
+            return primarySpans.toList()
         }
 
         /**
@@ -280,7 +310,7 @@ class ExtractAnnotationStats {
          * Load the previous annotation statistics from the
          * most recently modified JSON file (identified from `locatePreviousStats`)
          */
-        fun loadPreviousStats(statsFile: File): AnnotationStats {
+        private fun loadPreviousStats(statsFile: File): AnnotationStats {
             val mapper = jacksonObjectMapper()
             return mapper.readValue<AnnotationStats>(statsFile)
         }
@@ -288,7 +318,7 @@ class ExtractAnnotationStats {
         /**
          * Use the numbers in the new statistics and previous ones to get the differences
          */
-        fun getDiffs(newStats: AnnotationStats, previousStats: AnnotationStats): AnnotationStats {
+        private fun getDiffs(newStats: AnnotationStats, previousStats: AnnotationStats): AnnotationStats {
             val totalDiff = newStats.total - previousStats.total
             val userDiff = newStats.byUser
                     .filterKeys { previousStats.byUser.containsKey(it) }
