@@ -41,22 +41,24 @@ class ExtractAnnotationStats {
             val formatter = SimpleDateFormat("yyyy-MM-dd")
             val thisDate = formatter.format(currentDate.getTime())
 
-            val sentencesWithEventAnnotations: MutableList<SentenceAnnotation> = collectStats(exportAnnotationRoot)
+            val sentencesWithAnnotations: MutableList<SentenceAnnotation> = collectStats(exportAnnotationRoot)
 
             // From sentencesWithEventAnnotations, got TOTAL, TOTAL PER USER, EVENT TYPE, AND CORPUS
-            val positiveSentences = sentencesWithEventAnnotations.filter { !it.negativeExample }
-            val negativeSentences = sentencesWithEventAnnotations.filter { it.negativeExample }
-            val totalAnnotations = sentencesWithEventAnnotations.size
-            val annotationsByUser = sentencesWithEventAnnotations.countBy { it.user }
-            val annotationsByEventType = sentencesWithEventAnnotations.countBy { it.eventType }
-            val positiveAnnotationsByCorpus = positiveSentences.countBy { it.corpus }
-            val negativeAnnotationsByCorpus = negativeSentences.countBy { it.corpus }
+            val positiveSentences = sentencesWithAnnotations.filter { !it.negativeExample }
+            val negativeSentences = sentencesWithAnnotations.filter { it.negativeExample }
+            val totalAnnotations = sentencesWithAnnotations.size
+            val annotationCountsByUser = sentencesWithAnnotations.countBy { it.user }
+            val annotationCountsByEventType = sentencesWithAnnotations.countBy { it.eventType }
+            val positiveAnnotationCountsByCorpus = positiveSentences.countBy { it.corpus }
+            val negativeAnnotationCountsByCorpus = negativeSentences.countBy { it.corpus }
+            val corpusSentences = sentencesWithAnnotations.map { it.eventType to it.corpus }.toSet()
+            logger.info("Event types to corpora: $corpusSentences")
 
             // For better organization
-            val sortedUsers = annotationsByUser.toSortedMap()
-            val sortedEventTypes = annotationsByEventType.toSortedMap()
-            val sortedPositiveCorpora = positiveAnnotationsByCorpus.toSortedMap()
-            val sortedNegativeCorpora = negativeAnnotationsByCorpus.toSortedMap()
+            val sortedUsers = annotationCountsByUser.toSortedMap()
+            val sortedEventTypes = annotationCountsByEventType.toSortedMap()
+            val sortedPositiveCorpora = positiveAnnotationCountsByCorpus.toSortedMap()
+            val sortedNegativeCorpora = negativeAnnotationCountsByCorpus.toSortedMap()
             val newAnnotationStats = AnnotationStats(
                     totalAnnotations, sortedUsers, sortedEventTypes, sortedPositiveCorpora, sortedNegativeCorpora
             )
@@ -75,7 +77,7 @@ class ExtractAnnotationStats {
 
             // Convert values to html
             val htmlStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.html"), thisDate)
-            statsToHTML(htmlStatsReport, newAnnotationStats, previousStatsReport, annotationDiffs)
+            statsToHTML(htmlStatsReport, sentencesWithAnnotations, newAnnotationStats, previousStatsReport, annotationDiffs)
             // Convert values to json
             val jsonStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.json"), thisDate)
             statsToJSON(jsonStatsReport, newAnnotationStats)
@@ -83,11 +85,10 @@ class ExtractAnnotationStats {
 
         /**
          * Go through each file in the exported JSON directory and save info on
-         * each document that contains annotations.
+         * each sentence that contains annotations.
          * Eventually we will want to count the actual number of annotations.
          */
         fun collectStats(dir: File): MutableList<SentenceAnnotation> {
-            // val docsList: MutableList<DocumentAnnotation> = mutableListOf<DocumentAnnotation>()
             val sentenceList: MutableList<SentenceAnnotation> = mutableListOf<SentenceAnnotation>()
             dir.walk()
                     .filterNot {
@@ -359,20 +360,26 @@ class ExtractAnnotationStats {
          */
         fun statsToHTML(
                 newStatsReport: StatsReport,
+                allSentences: MutableList<SentenceAnnotation>,
                 newAnnotationStats: AnnotationStats,
                 previousStatsReport: StatsReport?,
                 annotationDiffs: AnnotationStats?
         ) {
+            // Get event type counts per corpus
+            val eventTypesToCorpora = allSentences.map { it.eventType to it.corpus }.toSet()
+            val projectCountsByCorporaUnsorted = eventTypesToCorpora.countBy {it.second}
+            val projectCountsByCorpora = projectCountsByCorporaUnsorted.toSortedMap()
             newStatsReport.report.printWriter().use{
                 out -> out.appendHTML().html {
                 head {
                     style {
-                        +"""table {
+                        +"""body {
                             font-family: arial, sans-serif;
+                        }
+                        table {
                             border-collapse: collapse;
                             margin: 8px;
                         }
-
                         td, th {
                             border: 1px solid #000000;
                             text-align: left;
@@ -400,6 +407,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+                    h3 { +"Positive" }
                     if (newAnnotationStats.byCorpusPositive != null) {
                         table {
                             tr {
@@ -422,6 +430,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+                    h3 { +"Negative" }
                     if (newAnnotationStats.byCorpusNegative != null) {
                         table {
                             tr {
@@ -441,6 +450,18 @@ class ExtractAnnotationStats {
                                         td { +"${annotationDiffs.byCorpusNegative[corpus]}" }
                                     }
                                 }
+                            }
+                        }
+                    }
+                    table {
+                        tr {
+                            th { +"Project" }
+                            th { +"Total event types" }
+                        }
+                        for (corpus in projectCountsByCorpora.keys) {
+                            tr {
+                                td { +"$corpus" }
+                                td { +"${projectCountsByCorpora[corpus]}" }
                             }
                         }
                     }
