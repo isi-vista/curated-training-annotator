@@ -38,18 +38,20 @@ import java.util.concurrent.TimeUnit
  *       <ul>
  *         <li> `indexDirectory` is the location of the files produced by `indexFlatGigaword.java`
 (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
+ *         <li> `aceEngDataDirectory` is the location of the ACE English corpus files
+ *         (ace_2005_td_v7_LDC2006T06/data/English) </li>
  *         <li> `gigawordDataDirectory` is the location of the gigaword text files </li>
  *         <li> `restoredJsonDirectory` is where the new json files will go </li>
+ *         <li> `annotatedFlexNLPOutputDir` is the directory where the annotated FlexNLP documents will be saved</li>
+ *         <li> `ingesterParametersDirectory` is where the parameters file for `curated_training_ingester.py` will
+ *          be saved</li>
+ *         <li> `pythonPath` is the path to the python interpreter that will be used to run
+ *         `curated_training_ingester.py`</li>
+ *         <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
  *       </ul>
  *     </li>
  *     <li> `statisticsDirectory` is the directory where the annotation statistics reports
  *     will be saved</li>
- *     <li> `annotatedFlexNLPOutputDir` is the directory where the annotated FlexNLP documents will be saved</li>
- *     <li> `ingesterParametersDirectory` is where the parameters file for `curated_training_ingester.py` will
- *     be saved</li>
- *     <li> `pythonPath` is the path to the python interpreter that will be used to run
- *     `curated_training_ingester.py`</li>
- *     <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
  *     <li> `repoToPushTo`: the ssh url of the repository to which the annotation data
  *     will be pushed; for ISI's curated training work, this is
  *     git@github.com:isi-vista/curated-training-annotation.git,
@@ -92,9 +94,11 @@ fun main(argv: Array<String>) {
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     // Build params for restoring the original text
-    val restoreJsonParams = if (params.getOptionalBoolean("restoreJson").or(false)) {
+    val restoreJson = params.getOptionalBoolean("restoreJson").or(false)
+    val restoreJsonParams = if (restoreJson) {
         Parameters.builder()
                 .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
+                .set("aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath)
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
                 .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
@@ -108,24 +112,6 @@ fun main(argv: Array<String>) {
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath)
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
-
-    // Assemble params for converting the JSON to FlexNLP documents
-    val curatedTrainingIngesterParamsBuilder = Parameters.builder()
-    curatedTrainingIngesterParamsBuilder.set("input_annotation_json_dir", exportedAnnotationRoot)
-    curatedTrainingIngesterParamsBuilder.set("annotated_flexnlp_output_dir", params.getCreatableDirectory("annotatedFlexNLPOutputDir").absolutePath)
-    val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
-    val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
-            .toPath()
-            .resolve("curated_training_ingester_params.yaml")
-            .toFile()
-    val pythonPath = params.getExistingFile("pythonPath")
-    val curatedTrainingIngesterPath = params.getExistingFile("curatedTrainingIngesterPath")
-    ingesterParametersDir.bufferedWriter().use { out ->
-        out.write(curatedTrainingIngesterParams.dump())
-    }
-    val execString = "$pythonPath" +
-            " $curatedTrainingIngesterPath" +
-            " $ingesterParametersDir"
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
@@ -146,7 +132,35 @@ fun main(argv: Array<String>) {
         ExtractAnnotationStats.extractStats(extractAnnotationStatsParams)
 
         // Get FlexNLP documents
-        execString.runCommand()
+        // only if the original text has been restored
+        if (restoreJson) {
+            // Assemble params for converting the JSON to FlexNLP documents
+            val curatedTrainingIngesterParamsBuilder = Parameters.builder()
+            curatedTrainingIngesterParamsBuilder.set(
+                    "input_annotation_json_dir",
+                    params.getCreatableDirectory("restoredJsonDirectory").absolutePath
+            )
+            curatedTrainingIngesterParamsBuilder.set(
+                    "annotated_flexnlp_output_dir",
+                    params.getCreatableDirectory("annotatedFlexNLPOutputDir").absolutePath
+            )
+            val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
+            val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
+                    .toPath()
+                    .resolve("curated_training_ingester_params.yaml")
+                    .toFile()
+            val pythonPath = params.getExistingFile("pythonPath")
+            val curatedTrainingIngesterPath = params.getExistingFile("curatedTrainingIngesterPath")
+            ingesterParametersDir.bufferedWriter().use { out ->
+                out.write(curatedTrainingIngesterParams.dump())
+            }
+            val execString = "$pythonPath" +
+                    " $curatedTrainingIngesterPath" +
+                    " $ingesterParametersDir"
+
+            // Execute the curated training ingester
+            execString.runCommand()
+        }
 
         // Push new annotations
         pushUpdatedAnnotations(git)
