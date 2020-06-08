@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import kotlinx.html.*
+import kotlinx.html.dom.document
 import kotlinx.html.stream.appendHTML
 import org.nield.kotlinstatistics.countBy
 import java.io.File
@@ -151,7 +152,10 @@ class ExtractAnnotationStats {
                             // TODO: count events rather than annotated sentences
                             // https://github.com/isi-vista/curated-training-annotator/issues/41
                             val jsonTree = ObjectMapper().readTree(it) as ObjectNode
+                            // Spans in relations are listed in _referenced_fss
                             val documentSpans = jsonTree["_referenced_fss"]
+                            // Any others are in CTEventSpan
+                            val documentCTEventSpan = jsonTree["_views"]["_InitialView"]["CTEventSpan"]
                             val documentSentences = jsonTree["_views"]["_InitialView"]["Sentence"]
                             val documentRelations = jsonTree["_views"]["_InitialView"]["CTEventSpanType"]
                             // For ACE projects, a "significant span" is a clue word or
@@ -160,17 +164,25 @@ class ExtractAnnotationStats {
                             // We determine the "significant spans" because
                             // these indicate if the sentence is negative, and it's faster than
                             // running through each span to find the annotated sentences.
-                            var significantDocumentSpans = listOf<JsonNode>()
-                            if (documentRelations == null) {
-                                // Try CTEventSpan
-                                val ctEventSpan = jsonTree["_views"]["_InitialView"]["CTEventSpan"]
-                                if (ctEventSpan != null && corpus != "ACE"){
-                                    significantDocumentSpans = ctEventSpan.toList()
+                            var significantDocumentSpans = mutableListOf<JsonNode>()
+                            if (documentCTEventSpan != null) {
+                                if (corpus != "ACE") {
+                                    if (documentRelations != null) {
+                                        significantDocumentSpans = getPrimarySpans(documentRelations, documentSpans)
+                                    }
+                                    // Add any argument-less spans from CTEventSpan.
+                                    // An example of a CTEventSpan value is
+                                    // "[1000, 1001, {"sofa": 1, "begin": 200, "end": 205, "negative_example": true}]"
+                                    // Integers represent spans in relations; we are
+                                    // only interested in collecting the spans here that aren't.
+                                    for (item in documentCTEventSpan) {
+                                        if (!item.isInt) {
+                                            significantDocumentSpans.add(item)
+                                        }
+                                    }
+                                } else if (documentRelations != null) {
+                                    significantDocumentSpans = getAceAdditions(documentRelations, documentSpans)
                                 }
-                            } else if (corpus == "ACE") {
-                                significantDocumentSpans = getAceAdditions(documentRelations, documentSpans)
-                            } else {
-                                significantDocumentSpans = getPrimarySpans(documentRelations, documentSpans)
                             }
                             // Keep track of sentences that have already been counted.
                             // Multiple triggers may appear in the same sentence, so we
@@ -231,7 +243,7 @@ class ExtractAnnotationStats {
          * Determine which spans in an ACE document are clue words
          * or secondary triggers - these have been added by an annotator.
          */
-        private fun getAceAdditions(relations: JsonNode, spans: JsonNode): List<JsonNode> {
+        private fun getAceAdditions(relations: JsonNode, spans: JsonNode): MutableList<JsonNode> {
             val addedSpans: MutableSet<JsonNode> = mutableSetOf()
             for (relation in relations) {
                 val relationType = if (relation["relation_type"] == null) {
@@ -245,7 +257,7 @@ class ExtractAnnotationStats {
                     addedSpans.add(spans[relation["Governor"].toString()])
                 }
             }
-            return addedSpans.toList()
+            return addedSpans.toMutableList()
         }
 
         /**
@@ -255,7 +267,7 @@ class ExtractAnnotationStats {
          * (i.e. the input spans here should all be part of relations).
          * Spans not in relations are collected by another method.
          */
-        private fun getPrimarySpans(relations: JsonNode, spans: JsonNode): List<JsonNode> {
+        private fun getPrimarySpans(relations: JsonNode, spans: JsonNode): MutableList<JsonNode> {
             val dependents: MutableSet<String> = mutableSetOf()
             val governors: MutableSet<String> = mutableSetOf()
             val primarySpans: MutableSet<JsonNode> = mutableSetOf()
@@ -278,7 +290,7 @@ class ExtractAnnotationStats {
                     primarySpans.add(spans[dependent])
                 }
             }
-            return primarySpans.toList()
+            return primarySpans.toMutableList()
         }
 
         /**
