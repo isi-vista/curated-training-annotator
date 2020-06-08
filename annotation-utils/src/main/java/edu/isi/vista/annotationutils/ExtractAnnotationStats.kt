@@ -51,8 +51,6 @@ class ExtractAnnotationStats {
             val annotationCountsByEventType = sentencesWithAnnotations.countBy { it.eventType }
             val positiveAnnotationCountsByCorpus = positiveSentences.countBy { it.corpus }
             val negativeAnnotationCountsByCorpus = negativeSentences.countBy { it.corpus }
-            val corpusSentences = sentencesWithAnnotations.map { it.eventType to it.corpus }.toSet()
-            logger.info("Event types to corpora: $corpusSentences")
 
             // For better organization
             val sortedUsers = annotationCountsByUser.toSortedMap()
