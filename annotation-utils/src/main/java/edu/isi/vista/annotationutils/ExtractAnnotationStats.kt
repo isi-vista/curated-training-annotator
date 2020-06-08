@@ -44,8 +44,7 @@ class ExtractAnnotationStats {
             val sentencesWithAnnotations: MutableList<SentenceAnnotation> = collectStats(exportAnnotationRoot)
 
             // From sentencesWithEventAnnotations, got TOTAL, TOTAL PER USER, EVENT TYPE, AND CORPUS
-            val positiveSentences = sentencesWithAnnotations.filter { !it.negativeExample }
-            val negativeSentences = sentencesWithAnnotations.filter { it.negativeExample }
+            val (positiveSentences, negativeSentences) = sentencesWithAnnotations.partition { !it.negativeExample }
             val totalAnnotations = sentencesWithAnnotations.size
             val annotationCountsByUser = sentencesWithAnnotations.countBy { it.user }
             val annotationCountsByEventType = sentencesWithAnnotations.countBy { it.eventType }
@@ -261,8 +260,8 @@ class ExtractAnnotationStats {
             val governors: MutableSet<String> = mutableSetOf()
             val primarySpans: MutableSet<JsonNode> = mutableSetOf()
             for (relation in relations) {
-                val relationDependent = relation["Dependent"].toString()
-                val relationGovernor = relation["Governor"].toString()
+                val relationDependent = relation["Dependent"].toString()  // the trigger or negative span
+                val relationGovernor = relation["Governor"].toString()  // the argument
                 // A span is a primary trigger if it
                 // depends on nothing or itself.
                 // We prevent spans from being added to
@@ -323,33 +322,26 @@ class ExtractAnnotationStats {
                     .filterKeys { previousStats.byUser.containsKey(it) }
                     .mapValues {
                         (user, newCount) ->
-                        previousStats.byUser[user]?.let { newCount?.minus(it) }
+                        previousStats.byUser.getValue(user).let { newCount.minus(it) }
                     }
             val eventTypeDiff = newStats.byEventType
                     .filterKeys { previousStats.byEventType.containsKey(it) }
                     .mapValues {
                         (eventType, newCount) ->
-                        previousStats.byEventType[eventType]?.let {newCount?.minus(it) }
+                        previousStats.byEventType.getValue(eventType).let { newCount.minus(it) }
                     }
-            val posCorpusDiff = if (previousStats.byCorpusPositive.isNullOrEmpty()) {
-                newStats.byCorpusPositive!!
-            } else {
-                newStats.byCorpusPositive!!
-                        .filterKeys { previousStats.byCorpusPositive.containsKey(it) }
-                        .mapValues { (corpus, newCount) ->
-                            previousStats.byCorpusPositive[corpus]?.let { newCount?.minus(it) }
-                        }
-            }
-            val negCorpusDiff = if (previousStats.byCorpusNegative.isNullOrEmpty()) {
-                newStats.byCorpusNegative!!
-            } else {
-                newStats.byCorpusNegative!!
-                        .filterKeys { previousStats.byCorpusNegative.containsKey(it) }
-                        .mapValues { (corpus, newCount) ->
-                            previousStats.byCorpusNegative[corpus]?.let { newCount?.minus(it) }
-                        }
-            }
-
+            val posCorpusDiff = newStats.byCorpusPositive
+                    .filterKeys { previousStats.byCorpusPositive.containsKey(it) }
+                    .mapValues {
+                        (corpus, newCount) ->
+                        previousStats.byCorpusPositive.getValue(corpus).let { newCount.minus(it) }
+                    }
+            val negCorpusDiff = newStats.byCorpusNegative
+                    .filterKeys { previousStats.byCorpusNegative.containsKey(it) }
+                    .mapValues {
+                        (corpus, newCount) ->
+                        previousStats.byCorpusNegative.getValue(corpus).let { newCount.minus(it) }
+                    }
                 return AnnotationStats(totalDiff, userDiff, eventTypeDiff, posCorpusDiff, negCorpusDiff)
         }
 
@@ -405,7 +397,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
-                    h3 { +"Positive" }
+                    h3 { +"Positive Sentences Annotated" }
                     if (newAnnotationStats.byCorpusPositive != null) {
                         table {
                             tr {
@@ -428,7 +420,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
-                    h3 { +"Negative" }
+                    h3 { +"Negative Sentences Annotated" }
                     if (newAnnotationStats.byCorpusNegative != null) {
                         table {
                             tr {
@@ -451,6 +443,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+                    h3 {+"All Event/Relation Type Projects Annotated"}
                     table {
                         tr {
                             th { +"Project" }
@@ -466,7 +459,7 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"User"}
-                            th {+"Sentences"}
+                            th {+"Total Sentences"}
                             th {+"New sentences"}
                         }
                         for (user in newAnnotationStats.byUser.keys) {
@@ -488,7 +481,7 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"Event type"}
-                            th {+"Sentences"}
+                            th {+"Total Sentences"}
                             th {+"New sentences"}
                         }
                         for (eventType in newAnnotationStats.byEventType.keys) {
@@ -535,9 +528,9 @@ data class SentenceAnnotation(
 )
 data class AnnotationStats(
         val total: Int,
-        val byUser: Map<String, Int?>,
-        val byEventType: Map<String, Int?>,
-        val byCorpusPositive: Map<String, Int?>?,
-        val byCorpusNegative: Map<String, Int?>?
+        val byUser: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
+        val byEventType: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
+        val byCorpusPositive: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
+        val byCorpusNegative: Map<String, Int> = mapOf<String, Int>().withDefault { 0 }
 )
 data class StatsReport(val report: File, val date: String)
