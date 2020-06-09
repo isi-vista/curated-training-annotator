@@ -5,9 +5,10 @@ inceptionPassword: %INCEPTION_PASSWORD%
 exportedAnnotationRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/exported
 
 restoreJson: false
+aceEngDataDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/corpora/ace_2005_td_v7_LDC2006T06/data/English
 gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
-restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/restored
+restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/restored
 
 statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/annotation-statistics
 
