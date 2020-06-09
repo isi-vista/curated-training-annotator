@@ -20,6 +20,7 @@ import java.util.*
  * the updated annotation files.
  */
 
+const val SOFA_TYPE = "\"Sofa\""
 const val INTERESTING_ROLE = "\"interesting\""
 const val TRIGGER_ROLE = "\"trigger\""
 
@@ -172,7 +173,7 @@ class ExtractAnnotationStats {
                                     }
                                     // Add any argument-less spans from CTEventSpan.
                                     // An example of a CTEventSpan value is
-                                    // "[1000, 1001, {"sofa": 1, "begin": 200, "end": 205, "negative_example": true}]"
+                                    // "[1004, 1009, {"sofa": 1, "begin": 200, "end": 205, "negative_example": true}, 1003]"
                                     // Integers represent spans in relations; we are
                                     // only interested in collecting the spans here that aren't.
                                     for (item in documentCTEventSpan) {
@@ -268,26 +269,30 @@ class ExtractAnnotationStats {
          * Spans not in relations are collected by another method.
          */
         private fun getPrimarySpans(relations: JsonNode, spans: JsonNode): MutableList<JsonNode> {
-            val dependents: MutableSet<String> = mutableSetOf()
-            val governors: MutableSet<String> = mutableSetOf()
+            val governors: MutableSet<JsonNode> = mutableSetOf()
             val primarySpans: MutableSet<JsonNode> = mutableSetOf()
             for (relation in relations) {
                 val relationDependent = relation["Dependent"].toString()  // the trigger or negative span
                 val relationGovernor = relation["Governor"].toString()  // the argument
                 // A span is a primary trigger if it
                 // depends on nothing or itself.
-                // We prevent spans from being added to
+                // Hence, we want to leave out any
+                // span that serves as an argument
+                // unless it's an argument of only itself.
+                // We prevent certain spans from being added to
                 // the "governors" list to ensure that
                 // triggers which serve as their own
                 // arguments are still considered primary triggers.
-                dependents.add(relationDependent)
-                if (relationDependent != relationGovernor) {
-                    governors.add(relationGovernor)
+                if (relationDependent != relationGovernor && spans[relationGovernor] != null) {
+                    governors.add(spans[relationGovernor])
                 }
             }
-            for (dependent in dependents) {
-                if (!governors.contains(dependent)) {
-                    primarySpans.add(spans[dependent])
+            for (span in spans) {
+                // For each document, there is one span that
+                // contains the whole document text.
+                // This is indicated with "_type": "Sofa"
+                if ((!governors.contains(span)) && (span["_type"].toString() != SOFA_TYPE)) {
+                    primarySpans.add(span)
                 }
             }
             return primarySpans.toMutableList()
