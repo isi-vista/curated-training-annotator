@@ -56,7 +56,7 @@ fun main(argv: Array<String>) {
             val projectInfo = getProjectInfo(projectName)
             // Each project should have a file named `event.log` - this
             // stores the timestamps of each "event" made in the project.
-            val eventLog = File(projectDir.toString(), "event.log")
+            val eventLog = File(projectDir.toString(), EVENT_LOG)
             if (eventLog.exists() && projectInfo != null) {
                 val username = projectInfo.username
                 val eventType = projectInfo.eventType

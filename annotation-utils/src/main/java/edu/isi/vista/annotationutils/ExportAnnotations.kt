@@ -19,6 +19,7 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 
 val logger = KLogging().logger
+const val EVENT_LOG = "event.log"
 
 /**
  * Downloads all the annotations from an Inception annotation server.
@@ -89,6 +90,7 @@ class ExportAnnotations {
             for (project in projects) {
                 logger.info { "Processing project $project" }
                 val getDocsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/documents"
+                val getExportUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/export.zip"
                 val documents = retryOnFuelError {
                     getDocsUrl.httpGet(
                             parameters = listOf("projectId" to project.id))
@@ -107,7 +109,6 @@ class ExportAnnotations {
                 if (documents.isNotEmpty()) {
                     Files.createDirectories(projectOutputDir)
                 }
-
                 for (document in documents) {
                     // each annotator's annotation for a document are stored separately
                     val getAnnotatingUsersUrl = "$inceptionUrl/api/aero/v1/projects/" +
@@ -190,6 +191,31 @@ class ExportAnnotations {
                                 Files.write(outFileName, redactedJsonString.toByteArray())
                             } else {
                                 throw RuntimeException("Corrupt zip file returned")
+                            }
+                        }
+                    }
+                }
+                // To save time and reduce clutter, only extract the log file if
+                // the project directory contains .json output.
+                val projectOutputFiles = projectOutputDir.toFile().listFiles()?.size ?: 0
+                if (projectOutputFiles > 0) {
+                    // Get export.zip, which contains the project's log file
+                    val exportZip = retryOnFuelError {
+                        getExportUrl.httpGet()
+                                .authenticateToInception()
+                                .retryOnResponseFailure()
+                    }
+                    // Get `event.log` from the resulting .zip export
+                    // and save it to the project output directory
+                    if (exportZip != null) {
+                        val inMemoryFileSystem = Jimfs.newFileSystem(Configuration.unix())
+                        val exportInMemoryZip = inMemoryFileSystem.getPath("/export.zip")
+                        Files.write(exportInMemoryZip, exportZip)
+                        val zipOutputFile = File(projectOutputDir.toString(), EVENT_LOG)
+                        ZipFile(exportInMemoryZip).use {
+                            val eventLog = it.getInputStream(EVENT_LOG)?.readBytes()
+                            if (eventLog != null) {
+                                Files.write(zipOutputFile.toPath(), eventLog)
                             }
                         }
                     }
