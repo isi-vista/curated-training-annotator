@@ -11,18 +11,24 @@ import java.util.concurrent.TimeUnit
 /**
  * Script for getting the annotation time information from event.log files
  *
- * The output is a .json file containing a list of each annotator's
- * projects and how long they have spent on each one, with the times
- * written in both seconds and an hours:minutes:seconds format.
- *
  * For this script to work, the event.log files should be saved in
  * their respective exported project files
- * (`.../exported/Event.Type-user_name/event.log`)
+ * (`.../exported/Event.Type-user_name/event.log`).
+ * This should be the case if `ExportAnnotations` was run previously.
+ *
+ * The output is a .json file containing a list of each annotator's
+ * projects and the estimated amount of time that they have spent
+ * on each one, with the times written in both seconds
+ * and an hours:minutes:seconds format.
+ *
+ * The durations are estimated based on the gaps of time between
+ * user "events" on Inception documents. Relatively long gaps
+ * are not counted in the total, assuming these indicate breaks.
  *
  * This takes a parameter file with two required parameters:
  * <ul>
- *   <li> `exportAnnotationRoot` - the output of ExportAnnotations </li>
- *   <li> `timeReportRoot` - the location where time reports will be saved </li>
+ *   <li> `exportAnnotationRoot` - the output directory of ExportAnnotations </li>
+ *   <li> `timeReportRoot` - the location where time report will be saved </li>
  * </ul>
  *
  */
@@ -52,28 +58,22 @@ fun main(argv: Array<String>) {
     // Go through each exported Inception project
     exportedAnnotationRoot.walk().filter {it.isDirectory}.forEach { projectDir ->
         val projectName = projectDir.name
-        if (projectName != exportedAnnotationRoot.name) {
-            val projectInfo = getProjectInfo(projectName)
-            // Each project should have a file named `event.log` - this
-            // stores the timestamps of each "event" made in the project.
-            val eventLog = File(projectDir.toString(), EVENT_LOG)
-            if (eventLog.exists() && projectInfo != null) {
-                val username = projectInfo.username
-                val eventType = projectInfo.eventType
-                logger.info { "Getting time $username spent on $eventType"}
-                // Read event.log
-                val jsonEvents = convertEventsToJson(eventLog)
-                // Get the total time the annotator spent on the project
-                val totalProjectTime = getTimeOnProject(jsonEvents, username)
-                projectInfo.annotationTime = totalProjectTime
-                allProjectInfo.add(projectInfo)
-            } else {
-                logger.info {
-                    "Not enough project info for $projectName;" +
-                            "either event.log was not found or" +
-                            "the username/event type could not be identified."
-                 }
-            }
+        val projectInfo = getProjectInfo(projectName)
+        // Each project should have a file named `event.log` - this
+        // stores the timestamps of each "event" made in the project.
+        val eventLog = File(projectDir.toString(), EVENT_LOG)
+        if (eventLog.exists() && projectInfo != null) {
+            val username = projectInfo.username
+            val eventType = projectInfo.eventType
+            logger.info { "Getting time $username spent on $eventType"}
+            // Read event.log
+            val jsonEvents = convertEventsToJson(eventLog)
+            // Get the total time the annotator spent on the project
+            val totalProjectTime = getTimeOnProject(jsonEvents, username)
+            projectInfo.annotationTime = totalProjectTime
+            allProjectInfo.add(projectInfo)
+        } else {
+            logger.info { "Skipping $projectName" }
         }
     }
     // Write time data to output file
@@ -104,16 +104,15 @@ data class ProjectInfo(
         val eventType: String,
         var annotationTime: Long
 ) {
-    val formattedTime get() = millisecondsToHMS(annotationTime)
+    val formattedTime get() = secondsToHMS(annotationTime)
 }
 
-private fun millisecondsToHMS(milliseconds: Long): String {
-    val hours = TimeUnit.MILLISECONDS.toHours(milliseconds)
-    val millisecondsForMinutes = milliseconds - (hours * 3600000)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(millisecondsForMinutes)
-    val millisecondsForSeconds = millisecondsForMinutes - (minutes * 60000)
-    val seconds = millisecondsForSeconds/1000
-    return "${hours}h:${minutes}m:${seconds}s"
+private fun secondsToHMS(seconds: Long): String {
+    val hours = TimeUnit.SECONDS.toHours(seconds)
+    val secondsForMinutes = seconds - (hours * 3600)
+    val minutes = TimeUnit.SECONDS.toMinutes(secondsForMinutes)
+    val remainingSeconds = secondsForMinutes - (minutes * 60)
+    return "${hours}h:${minutes}m:${remainingSeconds}s"
 }
 
 private fun getProjectInfo(projectName: String): ProjectInfo? {
@@ -125,8 +124,8 @@ private fun getProjectInfo(projectName: String): ProjectInfo? {
         Regex(pattern = """(ACE-[a-zA-Z]*\.[a-zA-Z]*-?[a-zA-Z]*?)-(.*)""")
     } else if (projectName.startsWith("CORD19")) {
         // CORD-19 project name format:
-        // CORD19-random983letters2and40numbers-user_name
-        Regex(pattern = """(CORD19-[a-zA-Z0-9]*)-(.*)""")
+        // CORD19-RelationType-user_name
+        Regex(pattern = """(CORD19-[a-zA-Z]*)-(.*)""")
     } else {
         // gigaword project name format:
         // optionallanguage-Standard.EventType-user_name
@@ -157,7 +156,7 @@ private fun convertEventsToJson(log: File): List<JsonNode> {
 }
 
 private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long {
-    // Get times spent in each document by running
+    // Get times (in seconds) spent in each document by running
     // through each Inception event recorded in event.log
     var currentDocument: String? = null  // some events have no document field
     var previousTime: Long = 0
@@ -205,5 +204,5 @@ private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long 
     // All events in this Inception project have been processed.
     // Sum up the times from each time to get the total time
     // spent on this project.
-    return documentTimeMap.map { it.value }.sum()
+    return documentTimeMap.map { it.value }.sum()/1000
 }
