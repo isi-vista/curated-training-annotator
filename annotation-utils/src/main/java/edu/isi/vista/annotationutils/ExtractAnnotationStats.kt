@@ -30,13 +30,13 @@ class ExtractAnnotationStats {
             if (argv.size != 1) {
                 throw RuntimeException("Expected a single argument: a parameter file")
             }
-            val paramsLoader = SerifStyleParameterFileLoader.Builder()
-                    .interpolateEnvironmentalVariables(true).build()
+            val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
             val params = paramsLoader.load(File(argv[0]))
             extractStats(params)
         }
         fun extractStats(params: edu.isi.nlp.parameters.Parameters) {
             val exportAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
+            val timeReportRoot = params.getExistingDirectory("timeReportRoot")
             val statisticsDirectory = params.getExistingDirectory("statisticsDirectory")
             val currentDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
             TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
@@ -75,9 +75,23 @@ class ExtractAnnotationStats {
                 logger.info {"No previous report found. Numbers of new annotations will not be printed."}
             }
 
+            // Get the time report of the current date
+            val timeReport: StatsReport? = locatePreviousStats(timeReportRoot)
+            var timeJson: JsonNode? = null
+            if (timeReport != null) {
+                timeJson = ObjectMapper().readTree(timeReport.report) as ObjectNode
+            }
+
             // Convert values to html
             val htmlStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.html"), thisDate)
-            statsToHTML(htmlStatsReport, sentencesWithAnnotations, newAnnotationStats, previousStatsReport, annotationDiffs)
+            statsToHTML(
+                    htmlStatsReport,
+                    sentencesWithAnnotations,
+                    newAnnotationStats,
+                    previousStatsReport,
+                    annotationDiffs,
+                    timeJson
+            )
             // Convert values to json
             val jsonStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.json"), thisDate)
             statsToJSON(jsonStatsReport, newAnnotationStats)
@@ -371,7 +385,8 @@ class ExtractAnnotationStats {
                 allSentences: MutableList<SentenceAnnotation>,
                 newAnnotationStats: AnnotationStats,
                 previousStatsReport: StatsReport?,
-                annotationDiffs: AnnotationStats?
+                annotationDiffs: AnnotationStats?,
+                annotationTimes: JsonNode?
         ) {
             // Get event type counts per corpus
             val eventTypesToCorpora = allSentences.map { it.eventType to it.corpus }.toSet()
@@ -514,6 +529,37 @@ class ExtractAnnotationStats {
                                 }
                                 else {
                                     td {+"${annotationDiffs.byEventType[eventType]}"}
+                                }
+                            }
+                        }
+                    }
+                    // Add a table for annotation times if a
+                    // time report was found
+                    if (annotationTimes != null) {
+                        h3 {+"User annotation times"}
+                        table {
+                            tr {
+                                th {+"User"}
+                                th {+"Project"}
+                                th {+"Estimated time"}
+                            }
+                            for (userEntry in annotationTimes.fields()) {
+                                val username = userEntry.key
+                                var firstProjectForUser = true
+                                for (projectInfo in annotationTimes[username].fields()) {
+                                    val project = projectInfo.key
+                                    tr {
+                                        // For a nicer appearance,
+                                        // only print the username once
+                                        if (firstProjectForUser) {
+                                            td {+username}
+                                        } else {
+                                            td {}
+                                        }
+                                        td {+project}
+                                        td {+"${annotationTimes[username][project]["formatted"]}"}
+                                        firstProjectForUser = false
+                                    }
                                 }
                             }
                         }
