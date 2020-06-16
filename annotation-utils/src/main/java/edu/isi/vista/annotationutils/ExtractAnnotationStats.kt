@@ -34,6 +34,9 @@ class ExtractAnnotationStats {
             extractStats(params)
         }
         fun extractStats(params: edu.isi.nlp.parameters.Parameters) {
+            // Generate a user annotation time report
+            GetAnnotationDurations.getDurations(params)
+            // Get params for the HTML stats report
             val exportAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
             val timeReportRoot = params.getExistingDirectory("timeReportRoot")
             val statisticsDirectory = params.getExistingDirectory("statisticsDirectory")
@@ -123,7 +126,7 @@ class ExtractAnnotationStats {
                     }
                     .forEach {
 
-                        if (it.isFile) {
+                        if (it.isFile && it.name != EVENT_LOG) {
                             logger.info { "Now processing $it" }
                             val folder = it.parent
                             // Get the username from the parent directory

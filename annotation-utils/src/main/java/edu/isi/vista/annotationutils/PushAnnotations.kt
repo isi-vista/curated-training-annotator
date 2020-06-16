@@ -110,7 +110,12 @@ fun main(argv: Array<String>) {
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
-    extractAnnotationStatsParamsBuilder.set("statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath)
+    extractAnnotationStatsParamsBuilder.set(
+            "timeReportRoot", params.getCreatableDirectory("timeReportRoot").absolutePath
+    )
+    extractAnnotationStatsParamsBuilder.set(
+            "statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath
+    )
     val extractAnnotationStatsParams = extractAnnotationStatsParamsBuilder.build()
 
     setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->

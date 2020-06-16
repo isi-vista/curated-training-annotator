@@ -33,70 +33,80 @@ import java.util.concurrent.TimeUnit
  *
  */
 
-fun main(argv: Array<String>) {
-    if (argv.size != 1) {
-        throw RuntimeException("Expected a single argument: a parameter file")
-    }
-    // Load parameters
-    val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
-    val params = paramsLoader.load(File(argv[0]))
-    val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
-    val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
+class GetAnnotationDurations {
+    companion object {
+        fun main(argv: Array<String>) {
+            if (argv.size != 1) {
+                throw RuntimeException("Expected a single argument: a parameter file")
+            }
+            // Load parameters
+            val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
+            val params = paramsLoader.load(File(argv[0]))
+        }
+        fun getDurations(params: edu.isi.nlp.parameters.Parameters) {
+            val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
+            val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
 
-    // Get current date information
-    val currentDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-    val formatter = SimpleDateFormat("yyyy-MM-dd")
-    val thisDate = formatter.format(currentDate.getTime())
+            // Get current date information
+            val currentDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val formatter = SimpleDateFormat("yyyy-MM-dd")
+            val thisDate = formatter.format(currentDate.getTime())
 
-    // Make objects for reading, parsing, and writing json:
-    val objectMapper = ObjectMapper()
-    val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
+            // Make objects for reading, parsing, and writing json:
+            val objectMapper = ObjectMapper()
+            val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
 
-    val allProjectInfo = mutableListOf<ProjectInfo>()
+            val allProjectInfo = mutableListOf<ProjectInfo>()
 
-    // Go through each exported Inception project
-    exportedAnnotationRoot.walk().filter {it.isDirectory}.forEach { projectDir ->
-        val projectName = projectDir.name
-        val projectInfo = getProjectInfo(projectName)
-        // Each project should have a file named `event.log` - this
-        // stores the timestamps of each "event" made in the project.
-        val eventLog = File(projectDir.toString(), EVENT_LOG)
-        if (eventLog.exists() && projectInfo != null) {
-            val username = projectInfo.username
-            val eventType = projectInfo.eventType
-            logger.info { "Getting time $username spent on $eventType"}
-            // Read event.log
-            val jsonEvents = convertEventsToJson(eventLog)
-            // Get the total time the annotator spent on the project
-            val totalProjectTime = getTimeOnProject(jsonEvents, username)
-            projectInfo.annotationTime = totalProjectTime
-            allProjectInfo.add(projectInfo)
-        } else {
-            logger.info { "Skipping $projectName" }
+            // Go through each exported Inception project
+            exportedAnnotationRoot.walk().filter {it.isDirectory}.forEach { projectDir ->
+                val projectName = projectDir.name
+                val projectInfo = getProjectInfo(projectName)
+                // Each project should have a file named `event.log` - this
+                // stores the timestamps of each "event" made in the project.
+                val eventLog = File(projectDir.toString(), EVENT_LOG)
+                if (eventLog.exists() && projectInfo != null) {
+                    val username = projectInfo.username
+                    val eventType = projectInfo.eventType
+                    logger.info { "Getting time $username spent on $eventType"}
+                    // Read event.log
+                    val jsonEvents = convertEventsToJson(eventLog)
+                    // Get the total time the annotator spent on the project
+                    val totalProjectTime = getTimeOnProject(jsonEvents, username)
+                    projectInfo.annotationTime = totalProjectTime
+                    allProjectInfo.add(projectInfo)
+                } else if (!eventLog.exists()){
+                    logger.info { "Skipping $projectName - no event.log found" }
+                } else if (projectInfo == null) {
+                    logger.info { "Skipping $projectName - could not identify username or event type" }
+                } else {
+                    logger.info { "Skipping $projectName"}
+                }
+            }
+            // Write time data to output file
+            val usersToProjectTimes = mutableMapOf<String, Map<String, Map<String, Any>>>()
+            // Mapping of users to projects to times
+            // These will be printed to the output file.
+            // For now we are only outputting the times spent on each project;
+            // individual document times may be added later if there is interest.
+            // {"user_name": {"Event.Type": {"seconds": 120, "formatted": "0h:2m:0s"}}}
+            val projectsByUser = allProjectInfo.groupBy { it.username }.toSortedMap()
+            for (userItem in projectsByUser) {
+                val user = userItem.component1()
+                val userProjects = userItem.component2()
+                val projectMap = userProjects.map {
+                    it.eventType to mapOf<String, Any>(
+                            "seconds" to it.annotationTime, "formatted" to it.formattedTime
+                    )
+                }.toMap().toSortedMap()
+                usersToProjectTimes[user] = projectMap
+            }
+            val outfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")
+            outfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToProjectTimes))
+            logger.info { "User annotation times written to $outfile" }
         }
     }
-    // Write time data to output file
-    val usersToProjectTimes = mutableMapOf<String, Map<String, Map<String, Any>>>()
-    // Mapping of users to projects to times
-    // These will be printed to the output file.
-    // For now we are only outputting the times spent on each project;
-    // individual document times may be added later if there is interest.
-    // {"user_name": {"Event.Type": {"seconds": 120, "formatted": "0h:2m:0s"}}}
-    val projectsByUser = allProjectInfo.groupBy { it.username }.toSortedMap()
-    for (userItem in projectsByUser) {
-        val user = userItem.component1()
-        val userProjects = userItem.component2()
-        val projectMap = userProjects.map {
-                it.eventType to mapOf<String, Any>(
-                        "seconds" to it.annotationTime, "formatted" to it.formattedTime
-                )
-        }.toMap().toSortedMap()
-        usersToProjectTimes[user] = projectMap
-    }
-    val outfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")
-    outfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToProjectTimes))
-    logger.info {" User annotation times written to $outfile" }
 }
 
 data class ProjectInfo(
@@ -140,7 +150,6 @@ private fun getProjectInfo(projectName: String): ProjectInfo? {
     return if (username != null && eventType != null) {
         ProjectInfo(username, eventType, 0)
     } else {
-        logger.info { "Could not identify project info for $projectName" }
         null
     }
 }
