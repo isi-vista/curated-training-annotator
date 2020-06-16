@@ -7,7 +7,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import kotlinx.html.*
-import kotlinx.html.dom.document
 import kotlinx.html.stream.appendHTML
 import org.nield.kotlinstatistics.countBy
 import java.io.File
@@ -59,12 +58,29 @@ class ExtractAnnotationStats {
             val sortedPositiveCorpora = positiveAnnotationCountsByCorpus.toSortedMap()
             val sortedNegativeCorpora = negativeAnnotationCountsByCorpus.toSortedMap()
 
+            // Get the time report information
+            val timeReport: StatsReport? = locateMostRecentJsonStats(timeReportRoot)
+            var timeJson: JsonNode? = null
+            var timeMap: Map<String, Long> = mapOf()
+            if (timeReport != null) {
+                if (timeReport.date != thisDate) {
+                    logger.warn { "The input time report was generated on ${timeReport.date} - it may be outdated!" }
+                }
+                timeJson = ObjectMapper().readTree(timeReport.report) as ObjectNode
+                timeMap = getTimesForAnnotationStats(timeJson)
+            }
+
             val newAnnotationStats = AnnotationStats(
-                    totalAnnotations, sortedUsers, sortedEventTypes, sortedPositiveCorpora, sortedNegativeCorpora
+                    totalAnnotations,
+                    sortedUsers,
+                    sortedEventTypes,
+                    sortedPositiveCorpora,
+                    sortedNegativeCorpora,
+                    timeMap
             )
 
             // Load the annotation statistics from the last run
-            val previousStatsReport: StatsReport? = locatePreviousStats(statisticsDirectory)
+            val previousStatsReport: StatsReport? = locateMostRecentJsonStats(statisticsDirectory)
             val previousAnnotationStats: AnnotationStats
             var annotationDiffs: AnnotationStats? = null
             if (previousStatsReport != null) {
@@ -73,13 +89,6 @@ class ExtractAnnotationStats {
             }
             else {
                 logger.info {"No previous report found. Numbers of new annotations will not be printed."}
-            }
-
-            // Get the time report of the current date
-            val timeReport: StatsReport? = locatePreviousStats(timeReportRoot)
-            var timeJson: JsonNode? = null
-            if (timeReport != null) {
-                timeJson = ObjectMapper().readTree(timeReport.report) as ObjectNode
             }
 
             // Convert values to html
@@ -314,10 +323,29 @@ class ExtractAnnotationStats {
         }
 
         /**
+         * Get the annotation times in seconds for each project
+         * and put them in a mapping for the output JSON
+         */
+        private fun getTimesForAnnotationStats(timeJson: JsonNode): Map<String, Long> {
+            val annotationTimeMap = mutableMapOf<String, Long>()
+            for (userEntry in timeJson.fields()) {
+                val username = userEntry.key
+                for (projectInfo in timeJson[username].fields()) {
+                    val project = projectInfo.key
+                    annotationTimeMap["$project-$username"] = (
+                            timeJson[username][project]["seconds"].toString().toLong()
+                            )
+                }
+            }
+            return annotationTimeMap
+        }
+
+
+        /**
          * Find all existing JSON files in the output directory and return
          * the most recent file; else return null
          */
-        fun locatePreviousStats(statsDir: File): StatsReport? {
+        private fun locateMostRecentJsonStats(statsDir: File): StatsReport? {
             return statsDir.walk().asSequence()
                     .filter { it.name.endsWith(".json") }
                     .map {
@@ -374,7 +402,13 @@ class ExtractAnnotationStats {
                         (corpus, newCount) ->
                         previousStats.byCorpusNegative.getValue(corpus).let { newCount.minus(it) }
                     }
-                return AnnotationStats(totalDiff, userDiff, eventTypeDiff, posCorpusDiff, negCorpusDiff)
+            val timesDiff = newStats.annotationTimes
+                    .filterKeys { previousStats.annotationTimes.containsKey(it) }
+                    .mapValues {
+                        (project, timeSpent) ->
+                        previousStats.annotationTimes.getValue(project).let { timeSpent.minus(it) }
+                    }
+                return AnnotationStats(totalDiff, userDiff, eventTypeDiff, posCorpusDiff, negCorpusDiff, timesDiff)
         }
 
         /**
@@ -492,7 +526,7 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"User"}
-                            th {+"Total Sentences"}
+                            th {+"Total sentences"}
                             th {+"New sentences"}
                         }
                         for (user in newAnnotationStats.byUser.keys) {
@@ -514,7 +548,7 @@ class ExtractAnnotationStats {
                     table {
                         tr {
                             th {+"Event type"}
-                            th {+"Total Sentences"}
+                            th {+"Total sentences"}
                             th {+"New sentences"}
                         }
                         for (eventType in newAnnotationStats.byEventType.keys) {
@@ -541,13 +575,18 @@ class ExtractAnnotationStats {
                             tr {
                                 th {+"User"}
                                 th {+"Project"}
-                                th {+"Estimated time"}
+                                th {+"Total estimated time"}
+                                th {+"Time spent since last report"}
                             }
                             for (userEntry in annotationTimes.fields()) {
                                 val username = userEntry.key
                                 var firstProjectForUser = true
                                 for (projectInfo in annotationTimes[username].fields()) {
                                     val project = projectInfo.key
+                                    val totalTime = annotationTimes[username][project]["formatted"]
+                                            .toString().removeSurrounding("\"")
+                                    val fullProjectName = "$project-$username"
+                                    val secondsDiff = annotationDiffs?.annotationTimes?.get(fullProjectName)
                                     tr {
                                         // For a nicer appearance,
                                         // only print the username once
@@ -557,7 +596,13 @@ class ExtractAnnotationStats {
                                             td {}
                                         }
                                         td {+project}
-                                        td {+"${annotationTimes[username][project]["formatted"]}"}
+                                        td {+totalTime}
+                                        if (secondsDiff != null){
+                                            td {+secondsToHMS(secondsDiff)}
+                                        } else {
+                                            td {+totalTime}
+                                        }
+
                                         firstProjectForUser = false
                                     }
                                 }
@@ -595,6 +640,7 @@ data class AnnotationStats(
         val byUser: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
         val byEventType: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
         val byCorpusPositive: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
-        val byCorpusNegative: Map<String, Int> = mapOf<String, Int>().withDefault { 0 }
+        val byCorpusNegative: Map<String, Int> = mapOf<String, Int>().withDefault { 0 },
+        var annotationTimes: Map<String, Long> = mapOf()
 )
 data class StatsReport(val report: File, val date: String)

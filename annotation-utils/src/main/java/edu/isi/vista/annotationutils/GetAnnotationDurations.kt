@@ -107,11 +107,10 @@ data class ProjectInfo(
     val formattedTime get() = secondsToHMS(annotationTime)
 }
 
-private fun secondsToHMS(seconds: Long): String {
-    val hours = TimeUnit.SECONDS.toHours(seconds)
-    val secondsForMinutes = seconds - (hours * 3600)
-    val minutes = TimeUnit.SECONDS.toMinutes(secondsForMinutes)
-    val remainingSeconds = secondsForMinutes - (minutes * 60)
+fun secondsToHMS(seconds: Long): String {
+    val hours = seconds/3600
+    val minutes = (seconds/60)%60
+    val remainingSeconds = seconds%60
     return "${hours}h:${minutes}m:${remainingSeconds}s"
 }
 
