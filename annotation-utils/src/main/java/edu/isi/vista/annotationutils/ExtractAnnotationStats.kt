@@ -616,7 +616,7 @@ class ExtractAnnotationStats {
                                             td {}
                                         }
                                         td {+project}
-                                        td {+projectSentenceCount}
+                                        td {+"$projectSentenceCount"}
                                         td {+totalTime}
                                         if (secondsDiff != null){
                                             td {+secondsToHMS(secondsDiff)}
@@ -653,7 +653,6 @@ private fun getSentenceCountsByProject(sentenceList: List<SentenceAnnotation>): 
     val sentencesByUser = sentenceList.groupBy { it.user }
     val projectCounts = mutableMapOf<String, Int>()
     for (user in sentencesByUser) {
-        logger.info { "user = $user" }
         val username = user.key
         val eventTypeCountsForUser = user.value.countBy { it.eventType }
         for (eventType in eventTypeCountsForUser) {
