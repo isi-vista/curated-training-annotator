@@ -187,10 +187,10 @@ private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long 
             // If there is a relatively long gap between events,
             // it may suggest that the annotator took a break.
             // Check if the time elapsed since the last event
-            // is less than 5 minutes (300,000 milliseconds) -
+            // is less than 2 minutes (120,000 milliseconds) -
             // else, don't add it to the overall time spent
             // on the document.
-            if (timeSinceLastEvent < 300000) {
+            if (timeSinceLastEvent < 120000) {
                 documentTimeElapsed += timeSinceLastEvent
             }
             if (documentName != currentDocument) {

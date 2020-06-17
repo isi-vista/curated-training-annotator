@@ -64,13 +64,13 @@ class ExtractAnnotationStats {
             // Get the time report information
             val timeReport: StatsReport? = locateMostRecentJsonStats(timeReportRoot)
             var timeJson: JsonNode? = null
-            var timeMap: Map<String, Long> = mapOf()
+            var annotationTimesMap: Map<String, Long> = mapOf()
             if (timeReport != null) {
                 if (timeReport.date != thisDate) {
                     logger.warn { "The input time report was generated on ${timeReport.date} - it may be outdated!" }
                 }
                 timeJson = ObjectMapper().readTree(timeReport.report) as ObjectNode
-                timeMap = getTimesForAnnotationStats(timeJson)
+                annotationTimesMap = getTimesForAnnotationStats(timeJson)
             }
 
             val newAnnotationStats = AnnotationStats(
@@ -79,7 +79,7 @@ class ExtractAnnotationStats {
                     sortedEventTypes,
                     sortedPositiveCorpora,
                     sortedNegativeCorpora,
-                    timeMap
+                    annotationTimesMap
             )
 
             // Load the annotation statistics from the last run
@@ -405,13 +405,19 @@ class ExtractAnnotationStats {
                         (corpus, newCount) ->
                         previousStats.byCorpusNegative.getValue(corpus).let { newCount.minus(it) }
                     }
+            // Get the times annotators spent on each project since the last stats report.
+            // For each project in the new stats report...
             val timesDiff = newStats.annotationTimes
+                    // if a time is recorded for that project in the previous stats report...
+                    // (each key is a full project name)
                     .filterKeys { previousStats.annotationTimes.containsKey(it) }
+                    // take the new and previous time values and calculate the difference.
+                    // Store these values in a map.
                     .mapValues {
                         (project, timeSpent) ->
                         previousStats.annotationTimes.getValue(project).let { timeSpent.minus(it) }
                     }
-                return AnnotationStats(totalDiff, userDiff, eventTypeDiff, posCorpusDiff, negCorpusDiff, timesDiff)
+            return AnnotationStats(totalDiff, userDiff, eventTypeDiff, posCorpusDiff, negCorpusDiff, timesDiff)
         }
 
         /**
@@ -527,6 +533,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+                    h3 {+"Sentences by User"}
                     table {
                         tr {
                             th {+"User"}
@@ -549,6 +556,7 @@ class ExtractAnnotationStats {
                             }
                         }
                     }
+                    h3 {+"Sentences by Event Type"}
                     table {
                         tr {
                             th {+"Event type"}
@@ -574,11 +582,12 @@ class ExtractAnnotationStats {
                     // Add a table for annotation times if a
                     // time report was found
                     if (annotationTimes != null) {
-                        h3 {+"User annotation times"}
+                        h3 {+"Sentences and Times by Project"}
                         table {
                             tr {
                                 th {+"User"}
                                 th {+"Project"}
+                                th {+"Total sentences"}
                                 th {+"Total estimated time"}
                                 th {+"Time spent since last report"}
                                 th {+"Sentences/hour"}
@@ -598,7 +607,6 @@ class ExtractAnnotationStats {
                                     val sentencesPerHour = (
                                             (projectSentenceCount.toFloat()/(totalSeconds/3600))
                                             )
-                                    logger.info {"sentencesPerHour: $sentencesPerHour"}
                                     tr {
                                         // For a nicer appearance,
                                         // only print the username once
@@ -608,6 +616,7 @@ class ExtractAnnotationStats {
                                             td {}
                                         }
                                         td {+project}
+                                        td {+projectSentenceCount}
                                         td {+totalTime}
                                         if (secondsDiff != null){
                                             td {+secondsToHMS(secondsDiff)}
