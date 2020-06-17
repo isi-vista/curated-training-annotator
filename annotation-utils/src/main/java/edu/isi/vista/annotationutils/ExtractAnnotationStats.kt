@@ -429,6 +429,7 @@ class ExtractAnnotationStats {
             val eventTypesToCorpora = allSentences.map { it.eventType to it.corpus }.toSet()
             val projectCountsByCorporaUnsorted = eventTypesToCorpora.countBy {it.second}
             val projectCountsByCorpora = projectCountsByCorporaUnsorted.toSortedMap()
+            val allProjectCounts = getSentenceCountsByProject(allSentences)
             newStatsReport.report.printWriter().use{
                 out -> out.appendHTML().html {
                 head {
@@ -580,6 +581,7 @@ class ExtractAnnotationStats {
                                 th {+"Project"}
                                 th {+"Total estimated time"}
                                 th {+"Time spent since last report"}
+                                th {+"Sentences/hour"}
                             }
                             for (userEntry in annotationTimes.fields()) {
                                 val username = userEntry.key
@@ -588,8 +590,15 @@ class ExtractAnnotationStats {
                                     val project = projectInfo.key
                                     val totalTime = annotationTimes[username][project]["formatted"]
                                             .toString().removeSurrounding("\"")
+                                    val totalSeconds = annotationTimes[username][project]["seconds"]
+                                            .toString().toFloat()
                                     val fullProjectName = "$project-$username"
                                     val secondsDiff = annotationDiffs?.annotationTimes?.get(fullProjectName)
+                                    val projectSentenceCount = allProjectCounts[fullProjectName] ?: 0
+                                    val sentencesPerHour = (
+                                            (projectSentenceCount.toFloat()/(totalSeconds/3600))
+                                            )
+                                    logger.info {"sentencesPerHour: $sentencesPerHour"}
                                     tr {
                                         // For a nicer appearance,
                                         // only print the username once
@@ -605,7 +614,7 @@ class ExtractAnnotationStats {
                                         } else {
                                             td {+totalTime}
                                         }
-
+                                        td {+"%.2f".format(sentencesPerHour)}
                                         firstProjectForUser = false
                                     }
                                 }
@@ -629,6 +638,21 @@ class ExtractAnnotationStats {
             prettyprinter.writeValue(newStatsReport.report, newAnnotationStats)
         }
     }
+}
+
+private fun getSentenceCountsByProject(sentenceList: List<SentenceAnnotation>): Map<String, Int> {
+    val sentencesByUser = sentenceList.groupBy { it.user }
+    val projectCounts = mutableMapOf<String, Int>()
+    for (user in sentencesByUser) {
+        logger.info { "user = $user" }
+        val username = user.key
+        val eventTypeCountsForUser = user.value.countBy { it.eventType }
+        for (eventType in eventTypeCountsForUser) {
+            val thisEventType = eventType.key
+            projectCounts["$thisEventType-$username"] = eventType.value
+        }
+    }
+    return projectCounts
 }
 
 data class SentenceAnnotation(

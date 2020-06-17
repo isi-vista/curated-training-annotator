@@ -177,6 +177,7 @@ private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long 
         // and were completed by the user
         // (admin monitoring activity also gets recorded)
         if (documentName != null && user == username) {
+            // Timestamps are in Unix time (milliseconds)
             val timestamp = event.get("created").toString().toLong()
             val timeSinceLastEvent = timestamp - previousTime
             if (previousTime == 0.toLong()) {
@@ -210,7 +211,7 @@ private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long 
         }
     }
     // All events in this Inception project have been processed.
-    // Sum up the times from each time to get the total time
+    // Sum up the times from each document to get the total time
     // spent on this project.
     return documentTimeMap.map { it.value }.sum()/1000
 }
