@@ -37,7 +37,7 @@ import java.util.*
  *
  */
 
-class GetAnnotationDurations {
+class ParseEventLogs {
     companion object {
         fun main(argv: Array<String>) {
             if (argv.size != 1) {
@@ -47,9 +47,9 @@ class GetAnnotationDurations {
             val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
             val params = paramsLoader.load(File(argv[0]))
         }
-        fun getDurations(params: edu.isi.nlp.parameters.Parameters) {
+        fun parseEventLogs(params: edu.isi.nlp.parameters.Parameters) {
             val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
-            val indicatorQueriesRoot = params.getCreatableDirectory("indicatorQueriesRoot")
+            val indicatorSearchesRoot = params.getCreatableDirectory("indicatorSearchesRoot")
             val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
 
             // Get current date information
@@ -113,7 +113,7 @@ class GetAnnotationDurations {
                 usersToIndicatorLists[user] = projectsToIndicatorListsMap
                 usersToProjectTimes[user] = projectsToTimesMap
             }
-            val indicatorListsOutfile = File(indicatorQueriesRoot, "indicatorSearches-$thisDate.json")
+            val indicatorListsOutfile = File(indicatorSearchesRoot, "indicatorSearches-$thisDate.json")
             val timesOutfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")
             indicatorListsOutfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToIndicatorLists))
             timesOutfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToProjectTimes))

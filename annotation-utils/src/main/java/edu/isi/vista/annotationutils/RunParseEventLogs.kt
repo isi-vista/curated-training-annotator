@@ -14,5 +14,5 @@ fun main(argv: Array<String>) {
     val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
     val params = paramsLoader.load(File(argv[0]))
 
-    GetAnnotationDurations.getDurations(params)
+    ParseEventLogs.parseEventLogs(params)
 }
