@@ -35,7 +35,7 @@ class ExtractAnnotationStats {
         }
         fun extractStats(params: edu.isi.nlp.parameters.Parameters) {
             // Generate a user annotation time report
-            GetAnnotationDurations.getDurations(params)
+            ParseEventLogs.parseEventLogs(params)
             // Get params for the HTML stats report
             val exportAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
             val timeReportRoot = params.getExistingDirectory("timeReportRoot")

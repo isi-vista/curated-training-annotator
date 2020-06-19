@@ -6,19 +6,22 @@ import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 /**
- * Script for getting the annotation time information from event.log files
+ * Script for extracting information from event.log files
+ *
+ * Specifically, this will get the different search queries
+ * and the times spent annotating each project from each user.
  *
  * For this script to work, the event.log files should be saved in
  * their respective exported project files
  * (`.../exported/Event.Type-user_name/event.log`).
  * This should be the case if `ExportAnnotations` was run previously.
  *
- * The output is a .json file containing a list of each annotator's
- * projects and the estimated amount of time that they have spent
- * on each one, with the times written in both seconds
+ * The output is two .json files: each containing a list of each annotator's
+ * projects and 1) which indicators were searched and 2) the estimated
+ * amount of time that they have spent on that project,
+ * with the times written in both seconds
  * and an hours:minutes:seconds format.
  *
  * The durations are estimated based on the gaps of time between
@@ -28,12 +31,13 @@ import java.util.concurrent.TimeUnit
  * This takes a parameter file with two required parameters:
  * <ul>
  *   <li> `exportAnnotationRoot` - the output directory of ExportAnnotations </li>
- *   <li> `timeReportRoot` - the location where time report will be saved </li>
+ *   <li> `indicatorQueriesRoot` - the location where user indicator query lists will be saved </li>
+ *   <li> `timeReportRoot` - the location where time reports will be saved </li>
  * </ul>
  *
  */
 
-class GetAnnotationDurations {
+class ParseEventLogs {
     companion object {
         fun main(argv: Array<String>) {
             if (argv.size != 1) {
@@ -43,8 +47,9 @@ class GetAnnotationDurations {
             val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
             val params = paramsLoader.load(File(argv[0]))
         }
-        fun getDurations(params: edu.isi.nlp.parameters.Parameters) {
+        fun parseEventLogs(params: edu.isi.nlp.parameters.Parameters) {
             val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
+            val indicatorSearchesRoot = params.getCreatableDirectory("indicatorSearchesRoot")
             val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
 
             // Get current date information
@@ -73,8 +78,9 @@ class GetAnnotationDurations {
                     // Read event.log
                     val jsonEvents = convertEventsToJson(eventLog)
                     // Get the total time the annotator spent on the project
-                    val totalProjectTime = getTimeOnProject(jsonEvents, username)
-                    projectInfo.annotationTime = totalProjectTime
+                    val parseResult = parseProjectEvents(jsonEvents, username)
+                    projectInfo.indicators = parseResult.second
+                    projectInfo.annotationTime = parseResult.first
                     allProjectInfo.add(projectInfo)
                 } else if (!eventLog.exists()){
                     logger.info { "Skipping $projectName - no event.log found" }
@@ -84,8 +90,9 @@ class GetAnnotationDurations {
                     logger.info { "Skipping $projectName"}
                 }
             }
-            // Write time data to output file
+            // Write indicator lists and time data to output file
             val usersToProjectTimes = mutableMapOf<String, Map<String, Map<String, Any>>>()
+            val usersToIndicatorLists = mutableMapOf<String, Map<String, Set<String>>>()
             // Mapping of users to projects to times
             // These will be printed to the output file.
             // For now we are only outputting the times spent on each project;
@@ -95,16 +102,23 @@ class GetAnnotationDurations {
             for (userItem in projectsByUser) {
                 val user = userItem.component1()
                 val userProjects = userItem.component2()
-                val projectMap = userProjects.map {
+                val projectsToIndicatorListsMap = userProjects.map {
+                    it.eventType to it.indicators
+                }.toMap().toSortedMap()
+                val projectsToTimesMap = userProjects.map {
                     it.eventType to mapOf<String, Any>(
                             "seconds" to it.annotationTime, "formatted" to it.formattedTime
                     )
                 }.toMap().toSortedMap()
-                usersToProjectTimes[user] = projectMap
+                usersToIndicatorLists[user] = projectsToIndicatorListsMap
+                usersToProjectTimes[user] = projectsToTimesMap
             }
-            val outfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")
-            outfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToProjectTimes))
-            logger.info { "User annotation times written to $outfile" }
+            val indicatorListsOutfile = File(indicatorSearchesRoot, "indicatorSearches-$thisDate.json")
+            val timesOutfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")
+            indicatorListsOutfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToIndicatorLists))
+            timesOutfile.writeBytes(prettyPrinter.writeValueAsBytes(usersToProjectTimes))
+            logger.info { "User indicator searches written to $indicatorListsOutfile" }
+            logger.info { "User annotation times written to $timesOutfile" }
         }
     }
 }
@@ -112,6 +126,7 @@ class GetAnnotationDurations {
 data class ProjectInfo(
         val username: String,
         val eventType: String,
+        var indicators: Set<String>,
         var annotationTime: Long
 ) {
     val formattedTime get() = secondsToHMS(annotationTime)
@@ -148,7 +163,7 @@ private fun getProjectInfo(projectName: String): ProjectInfo? {
         username = patternMatch.groups[2]!!.value
     }
     return if (username != null && eventType != null) {
-        ProjectInfo(username, eventType, 0)
+        ProjectInfo(username, eventType, setOf(), 0)
     } else {
         null
     }
@@ -163,18 +178,25 @@ private fun convertEventsToJson(log: File): List<JsonNode> {
     return logEvents.map {eventObjectMapper.readTree(it)}
 }
 
-private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long {
-    // Get times (in seconds) spent in each document by running
-    // through each Inception event recorded in event.log
+private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pair<Long, Set<String>> {
+    // Get indicators searched and times (in seconds) spent in each document
+    // by running through each Inception event recorded in the project's event.log
     var currentDocument: String? = null  // some events have no document field
     var previousTime: Long = 0
     var documentTimeElapsed: Long = 0
     val documentTimeMap = mutableMapOf<String, Long>().withDefault { 0 }
+    val indicatorSet = mutableSetOf<String>()
     for (event in logEvents) {
+        val inceptionEventType = event.get("event").toString().removeSurrounding("\"")
         val documentName = event.get("document_name")?.toString()?.removeSurrounding("\"")
         val user = event.get("user")?.toString()?.removeSurrounding("\"")
-        // Only deal with events that have a "document_name" field
-        // and were completed by the user
+        // If the event is an indicator search, record the search query.
+        // Search query events aren't associated with any particular document.
+        if (inceptionEventType == "ExternalSearchQueryEvent" && user == username) {
+            indicatorSet.add(event["details"]["query"].toString().removeSurrounding("\""))
+        }
+        // When getting times, only deal with events that have a
+        // "document_name" field and were completed by the user
         // (admin monitoring activity also gets recorded)
         if (documentName != null && user == username) {
             // Timestamps are in Unix time (milliseconds)
@@ -213,5 +235,5 @@ private fun getTimeOnProject(logEvents: List<JsonNode>, username: String): Long 
     // All events in this Inception project have been processed.
     // Sum up the times from each document to get the total time
     // spent on this project.
-    return documentTimeMap.map { it.value }.sum()/1000
+    return Pair<Long, Set<String>>(documentTimeMap.map { it.value }.sum()/1000, indicatorSet)
 }
