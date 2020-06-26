@@ -111,6 +111,9 @@ fun main(argv: Array<String>) {
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     extractAnnotationStatsParamsBuilder.set(
+            "indicatorSearchesRoot", params.getCreatableDirectory("indicatorSearchesRoot").absolutePath
+    )
+    extractAnnotationStatsParamsBuilder.set(
             "timeReportRoot", params.getCreatableDirectory("timeReportRoot").absolutePath
     )
     extractAnnotationStatsParamsBuilder.set(
