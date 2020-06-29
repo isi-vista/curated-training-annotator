@@ -537,14 +537,22 @@ class ExtractAnnotationStats {
                         tr {
                             th {+"User"}
                             th {+"Total sentences"}
+                            th {+"Positive"}
+                            th {+"Negative"}
                             th {+"New sentences"}
                             th {+"Avg. sentences/hour"}
                         }
+                        val sentencesByUser = allSentences.groupBy { it.user }
                         for (user in newAnnotationStats.byUser.keys) {
                             val totalUserSentences = newAnnotationStats.byUser[user]
+                            val userPositiveNegativeCounts = (
+                                    sentencesByUser[user] ?: error("")
+                                    ).countBy { it.negativeExample }
                             tr {
                                 td { +user }
                                 td { +"$totalUserSentences" }
+                                td {+"${userPositiveNegativeCounts[false] ?: 0}"}
+                                td {+"${userPositiveNegativeCounts[true] ?: 0}"}
                                 if (annotationDiffs == null) {
                                     td { +"n/a" }
                                 } else if (annotationDiffs.byUser[user] == null) {
@@ -575,12 +583,20 @@ class ExtractAnnotationStats {
                         tr {
                             th {+"Event type"}
                             th {+"Total sentences"}
+                            th {+"Positive"}
+                            th {+"Negative"}
                             th {+"New sentences"}
                         }
+                        val sentencesByEventType = allSentences.groupBy { it.eventType }
                         for (eventType in newAnnotationStats.byEventType.keys) {
+                            val eventTypePositiveNegativeCounts = (
+                                    sentencesByEventType[eventType] ?: error("")
+                                    ).countBy { it.negativeExample }
                             tr {
-                                td {+"$eventType" }
+                                td {+eventType}
                                 td {+"${newAnnotationStats.byEventType[eventType]}"}
+                                td {+"${eventTypePositiveNegativeCounts[false] ?: 0}"}
+                                td {+"${eventTypePositiveNegativeCounts[true] ?: 0}"}
                                 if (annotationDiffs == null) {
                                     td {+"n/a"}
                                 }
