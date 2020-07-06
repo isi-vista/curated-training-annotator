@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
+import org.apache.jena.atlas.lib.tuple.Tuple
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -117,7 +118,9 @@ class ParseEventLogs {
             }
             // Write indicator lists and time data to output file
             val usersToProjectTimes = mutableMapOf<String, Map<String, Map<String, Any>>>()
-            val usersToIndicatorLists = mutableMapOf<String, Map<String, MutableSet<String>>>()
+            val usersToIndicatorLists = mutableMapOf<
+                    String, Map<String, IndicatorMap>
+                    >()
             // Mapping of users to projects to times
             // These will be printed to the output file.
             // For now we are only outputting the times spent on each project;
@@ -127,14 +130,23 @@ class ParseEventLogs {
             for (userItem in projectsByUser) {
                 val user = userItem.component1()
                 val userProjects = userItem.component2()
+                // projectsToIndicatorLists is the mapping from projects to
+                // IndicatorMaps. Sometimes a user may have project data stored
+                // in two different logs, so we use `projectsToIndicatorListsMap`
+                // to combine indicators from different event logs.
                 val projectsToIndicatorLists = userProjects.map {
                     it.eventType to it.indicators
                 }
-                val projectsToIndicatorListsMap = mutableMapOf<String, MutableSet<String>>()
-                        .withDefault { mutableSetOf() }
+                val projectsToIndicatorListsMap = mutableMapOf<String, IndicatorMap>()
+                        .withDefault { mapOf() }
                 for (pair in projectsToIndicatorLists) {
-                    val indicatorListsUnion: MutableSet<String> = projectsToIndicatorListsMap
-                            .getValue(pair.first).union(pair.second).toMutableSet()
+                    // Merge the project's indicator map with that of the project in
+                    // projectsToIndicatorListsMap
+                    val indicatorMapA: IndicatorMap = projectsToIndicatorListsMap.getValue(pair.first)
+                    val indicatorListsUnion: IndicatorMap = (indicatorMapA.keys + pair.second.keys)
+                            .associateWith {
+                        setOf(indicatorMapA[it], pair.second[it]).filterNotNull().flatten()
+                    }
                     projectsToIndicatorListsMap[pair.first] = indicatorListsUnion
                 }
                 val projectsToIndicatorListsSortedMap = projectsToIndicatorListsMap.toMap().toSortedMap()
@@ -166,10 +178,16 @@ class ParseEventLogs {
     }
 }
 
+// Mapping from indicators to annotated spans
+// Spans are identified by document ID, starting index, and ending index
+// {indicator: [{docID: <docID>, begin: <startIndex>, end: <endIndex>}, ...], ...}
+typealias IndicatorMap = Map<String, List<Map<String, String>>>
+
 data class ProjectInfo(
         val username: String,
         val eventType: String,
-        var indicators: Set<String>,
+        // indicators = { indicator: [{docID, spanBegin, spanEnd}, ...], ... }
+        var indicators: IndicatorMap,
         var annotationTime: Long
 ) {
     val formattedTime get() = secondsToHMS(annotationTime)
@@ -178,6 +196,22 @@ data class ProjectInfo(
 private fun isValidLog(eventLog: File, projectName: String): Boolean {
     val hasBannedStrings = bannedStrings.any { projectName.contains(it) }
     return eventLog.exists() && !hasBannedStrings
+}
+
+private fun logValToString(logVal: JsonNode): String {
+    return logVal.toString().removeSurrounding("\"")
+}
+
+private fun optionalLogValToString(logVal: JsonNode?): String? {
+    return logVal.toString()?.removeSurrounding("\"")
+}
+
+private fun createSpanTriple(
+        event: JsonNode, docID: String
+): Map<String, String> {
+    val spanBegin = logValToString(event["details"]["begin"])
+    val spanEnd = logValToString(event["details"]["end"])
+    return mapOf("doc_id" to docID, "begin" to spanBegin, "end" to spanEnd)
 }
 
 fun secondsToHMS(seconds: Long): String {
@@ -211,7 +245,7 @@ private fun getProjectInfo(projectName: String): ProjectInfo? {
         username = patternMatch.groups[2]!!.value
     }
     return if (username != null && eventType != null) {
-        ProjectInfo(username, eventType, setOf(), 0)
+        ProjectInfo(username, eventType, mapOf(), 0)
     } else {
         null
     }
@@ -226,14 +260,17 @@ private fun convertEventsToJson(log: File): List<JsonNode> {
     return logEvents.map {eventObjectMapper.readTree(it)}
 }
 
-private fun parseProjectEvents(logEvents: List<JsonNode>, username: String, usernameMap: JsonNode): Pair<Long, Set<String>> {
+private fun parseProjectEvents(
+        logEvents: List<JsonNode>, username: String, usernameMap: JsonNode
+): Pair<Long, IndicatorMap> {
     // Get indicators searched and times (in seconds) spent in each document
     // by running through each Inception event recorded in the project's event.log
     var currentDocument: String? = null  // some events have no document field
     var previousTime: Long = 0
     var documentTimeElapsed: Long = 0
     val documentTimeMap = mutableMapOf<String, Long>().withDefault { 0 }
-    val indicatorSet = mutableSetOf<String>()
+    var currentIndicator: String? = null
+    val indicatorMap = mutableMapOf<String, MutableList<Map<String, String>>>()
     for (event in logEvents) {
         val inceptionEventType = event.get("event").toString().removeSurrounding("\"")
         val documentName = event.get("document_name")?.toString()?.removeSurrounding("\"")
@@ -243,12 +280,22 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String, user
         // If the event is an indicator search, record the search query.
         // Search query events aren't associated with any particular document.
         if (inceptionEventType == "ExternalSearchQueryEvent" && user == username) {
-            indicatorSet.add(event["details"]["query"].toString().removeSurrounding("\""))
+            currentIndicator = logValToString(event["details"]["query"])
+            if (!indicatorMap.containsKey(currentIndicator)) {
+                indicatorMap[currentIndicator] = mutableListOf()
+            }
         }
-        // When getting times, only deal with events that have a
+        // When getting times and spans, only deal with events that have a
         // "document_name" field and were completed by the user
         // (admin monitoring activity also gets recorded)
         if (documentName != null && user == username) {
+            if (inceptionEventType == "SpanCreatedEvent") {
+                val spanTriple = createSpanTriple(event, documentName)
+                indicatorMap[currentIndicator]?.add(spanTriple)
+            } else if (inceptionEventType == "SpanDeletedEvent") {
+                val spanTriple = createSpanTriple(event, documentName)
+                indicatorMap[currentIndicator]?.remove(spanTriple)
+            }
             // Timestamps are in Unix time (milliseconds)
             val timestamp = event.get("created").toString().toLong()
             val timeSinceLastEvent = timestamp - previousTime
@@ -282,7 +329,9 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String, user
     updateDocumentTimeMap(documentTimeMap, documentTimeElapsed, currentDocument.toString())
     // Sum up the times from each document to get the total time
     // spent on this project.
-    return Pair<Long, Set<String>>(documentTimeMap.map { it.value }.sum()/1000, indicatorSet)
+    return Pair<Long, IndicatorMap>(
+            documentTimeMap.map { it.value }.sum()/1000, indicatorMap
+    )
 }
 
 private fun updateDocumentTimeMap(
