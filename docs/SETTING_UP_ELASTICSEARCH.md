@@ -174,6 +174,11 @@ Then add this line to `elasticsearch.yml` in the `Paths` section like so:
    ```
    curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup/<snapshot_name>"
    ```
+   
+   To view a list of all snapshots stored in the repository:
+   ```
+   curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup/_all"
+    ```
  
 #### Restoring backups  
 
