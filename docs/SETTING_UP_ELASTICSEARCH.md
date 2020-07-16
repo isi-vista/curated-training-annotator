@@ -102,6 +102,91 @@ It will take a while to complete indexing for entire dataset. When indexing is d
     ```
 A JSON file that reports the search results (including seach time, hit number and documents that contain the keywords) is expected.
 
+### Backing up ElasticSearch Indices
+Reference: https://www.elastic.co/guide/en/elasticsearch/reference/6.6/modules-snapshots.html
+
+In the case where our indices get deleted for whatever reason, it is important
+to have backups ready to restore them.
+Here are the steps for creating and restoring backups.
+
+#### Creating backups
+
+If the desired snapshot repository has already been created and registered,
+skip to step 4.
+
+1. Determine where the backups will be saved and create the directory if
+it doesn't already exist.
+Then add this line to `elasticsearch.yml` in the `Paths` section like so:
+(note that you will need to be logged in as `elasticsearch`)
+
+    ```
+   path.repo: ["/nas/gaia/elasticsearch_data"]
+   ```
+
+2. Restart ElasticSearch.
+
+    In order to register the backup repo path, ElasticSearch must be restarted.
+    If ElasticSearch hasn't already been stopped, do steps i and ii below.
+
+    1. Find the PID with `jps | grep Elasticsearch`.
+    2. Run `kill -SIGKILL [PID]`. You can then check the logs to confirm that
+    the service successfully shut down.
+    3. Restart the service: `cd /lfs1/ElasticSearch; bash ./elasticsearch-6.6.1/bin/elasticsearch`
+
+3. Create the backup repository - this is where "snapshots" will be saved.
+   ```
+   curl -X PUT "http://localhost:9200/_snapshot/elasticsearch_backup?pretty" -H 'Content-Type: application/
+   json' -d
+   '{
+        "type": "fs",
+        "settings": {
+            "location": "/nas/gaia/elasticsearch_data"
+        }
+   }'
+   ```
+   If you are getting an `access_denied_exception`, make sure that the user
+   `elasticsearch` has permission to write to your chosen directory, then try again.
+   
+   Verify that the repository was registered.
+   ```
+   curl -X POST "http://localhost:9200/_snapshot/elasticsearch_backup/_verify"
+   ```
+   
+   You can check the repository information using this command:
+   ```
+   curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup"
+   ```
+
+4. Create a snapshot of all indices in the cluster and save it to the repository.
+   ```
+   # PUT /_snapshot/elasticsearch_backup/<snapshot-{current-date}>
+   curl -X PUT "http://localhost:9200/_snapshot/elasticsearch_backup/%3Csnapshot-%7Bnow%2Fd%7D%3E?wait_for_completion=true"
+   ```
+   If `wait_for_completion` is set to `true`, the request will not return until the snapshot
+   is completed. The default is to return immediately after initialization.
+   
+   You can view the status of a snapshot with a `GET` command:
+   ```
+   curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup/<snapshot_name>/_status"
+   ```
+   
+   Information from a completed snapshot can be obtained with a similar command:
+   ```
+   curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup/<snapshot_name>"
+   ```
+   
+   To view a list of all snapshots stored in the repository:
+   ```
+   curl -X GET "http://localhost:9200/_snapshot/elasticsearch_backup/_all"
+    ```
+ 
+#### Restoring backups  
+
+To restore a backup:
+   ```
+    curl -X POST "http://localhost:9200/_snapshot/elasticsearch_backup/<snapshot_name>/_restore"
+   ```
+
 ### Checking ElasticSearch logs
 
 ```
