@@ -270,7 +270,7 @@ fun <T> retryOnFuelError(maxTries: Int = 3, timeoutInSeconds: Long = 5, function
 }
 
 
-private fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5): ByteArray? {
+fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5): ByteArray? {
     for (i in 1..maxTries) {
         val (_, _, result) = this.response()
         when (result) {

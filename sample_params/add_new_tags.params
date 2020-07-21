@@ -1,10 +1,11 @@
-INCLUDE generate_projects.common.lee.params
+INCLUDE generate_projects.common.params
 
 inceptionUrl: http://curatedtraining.isi.edu:8080
 inceptionUsername: remote_admin
 # password is expected to be specified in an environmental variable
 inceptionPassword: %INCEPTION_PASSWORD%
 
-project_dir: /Users/isiboston/Documents/projects/gaia/curatedTraining/generated_projects
-modified_output_dir: /Users/isiboston/Documents/projects/gaia/curatedTraining/generated_projects/updated_0514
-new_tag_list: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotator/docs/aida_changes_0514.json
+userList: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotator/docs/2020-05-users.txt
+originalExportDir: /Users/isiboston/Documents/projects/gaia/curatedTraining/original_exports
+modifiedOutputDir: /Users/isiboston/Documents/projects/gaia/curatedTraining/generated_projects/modified_copies
+newTagList: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotator/docs/aida_changes_0514.json
