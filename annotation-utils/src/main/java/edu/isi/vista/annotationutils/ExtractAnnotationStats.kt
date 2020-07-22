@@ -125,7 +125,6 @@ class ExtractAnnotationStats {
                                 it.absolutePath.contains("DS_Store")
                     }
                     .forEach {
-
                         if (it.isFile && it.name != EVENT_LOG) {
                             logger.info { "Now processing $it" }
                             val folder = it.parent

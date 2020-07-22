@@ -51,12 +51,16 @@ class RestoreJson {
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
             val gigaWordTextSource = makeTextSource(params, "gigaword")
             val aceTextSource = makeTextSource(params, "ace")
+            val cord19TextSource = makeTextSource(params, "covid19")
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
+                val englishPattern = Regex("[\b_]ENG[\b_]")
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
-                if (filename.contains(Regex("[\b_]ENG[\b_]")) || aceDocID != null) {
+                // returns docID if CORD-19 file, else returns null
+                val cord19DocID = getCord19DocID(filename)
+                if (filename.contains(englishPattern) || aceDocID != null || cord19DocID != null) {
                     // The project directory is the path to this file with the input directory components
                     // stripped off the front, then joined with the desired output directory.
                     val projectOutDir = Paths.get(
@@ -75,6 +79,10 @@ class RestoreJson {
                         // CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
                         val docID = Symbol.from(aceDocID)
                         aceTextSource.getOriginalText(docID).orNull()
+                                ?: throw RuntimeException("Could not get original text for $docID")
+                    } else if (cord19DocID != null) {
+                        val docID = Symbol.from(cord19DocID)
+                        cord19TextSource.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
                     } else {
                         // If it is a Gigaword doc: First 21 characters of the filename are the
@@ -111,6 +119,9 @@ fun makeTextSource(params: Parameters, corpusName: String): OriginalTextSource {
     } else if (corpusName.equals("ace", ignoreCase = true)) {
         // Create the Ace corpus TextSource
         return AceCorpusTextSource(params.getExistingDirectory("aceEngDataDirectory"))
+    } else if (corpusName.equals("covid19", ignoreCase = true)) {
+        // Create the CORD-19 corpus TextSource
+        return Cord19CorpusTextSource(params.getExistingDirectory("cord19DataDirectory"))
     } else {
         throw IOException("A corpus: " + corpusName + " does not exist.");
     }
@@ -136,14 +147,34 @@ private fun Path.removePrefixPath(prefix: Path): Path {
 
 
 private fun getAceDocID(filename: String): String? {
-    // Returns empty string if not an AceFileName
+    // Returns null if not an AceFileName
     // Ace filenames contain an event.subtype in the file name
     // Example: CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
     val regex = """(.*_[^a-zA-Z]*)-(.*?)-.*?""".toRegex()
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
-        return matchResult!!.groups[1]!!.value
+        val matchGroups = matchResult!!.groups
+        // match groups = ("<docid>-john_bob.json", "<docid>")
+        return matchGroups[1]!!.value
+    }
+    return null
+}
+
+private fun getCord19DocID(filename: String): String? {
+    // Returns null if not a CORD-19 filename
+    // CORD-19 filenames consist of a string of letters and numbers
+    // and then the annotator's username
+    // Example: hfofi34yrohwfniw94tyowlefnweiug8iryfhwen-john_bob.json
+
+    val regex = Regex(pattern = """([a-z0-9]{30,})-.*""")
+    if (regex.containsMatchIn(filename)) {
+        val matchResult = regex.find(filename)
+        //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
+        logger.info { "CORD-19 ID: ${matchResult!!.groups[1]!!.value}" }
+        val matchGroups = matchResult!!.groups
+        // match groups = ("<docid>-john_bob.json", "<docid>")
+        return matchGroups[1]!!.value
     }
     return null
 }
