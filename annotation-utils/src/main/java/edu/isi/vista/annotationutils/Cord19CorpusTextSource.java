@@ -1,5 +1,8 @@
 package edu.isi.vista.annotationutils;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.io.Files;
@@ -33,26 +36,70 @@ public final class Cord19CorpusTextSource implements OriginalTextSource{
         return Optional.of(processCord19SourceText(rawSourceText.get()));
     }
 
-    Cord19CorpusTextSource(File aceDataDirectory) throws IOException{
+    Cord19CorpusTextSource(File cord19DataDirectory) throws IOException{
         if(!cord19DataDirectory.exists()) {
-            throw new IOException("The aceDataDirectory does not exist");
+            throw new IOException("The cord19DataDirectory does not exist");
         }
         if(!cord19DataDirectory.isDirectory()) {
-            throw new IOException("The aceDataDirectory parameter given is not a directory");
+            throw new IOException("The cord19DataDirectory parameter given is not a directory");
         }
         this.cord19DataDirectory = cord19DataDirectory;
-        this.sourceFileDirectories = Arrays.asList(cord19DataDirectory.listFiles());
-        for(int i = 0; i < this.sourceFileDirectories.size(); i++){
-            this.sourceFileDirectories.set(i, new File(this.sourceFileDirectories.get(i), "adj"));
-        }
+        // Directory structure is
+        // <data-directory>/<folder-name-x>/<folder-name-x>/
+        this.sourceFileDirectories = Arrays.asList(
+                new File(this.cord19DataDirectory + "/biorxiv_medrxiv/biorxiv_medrxiv"),
+                new File(this.cord19DataDirectory + "/comm_use_subset/comm_use_subset"),
+                new File(this.cord19DataDirectory + "/noncomm_use_subset/noncomm_use_subset"),
+                new File(this.cord19DataDirectory + "/pmc_custom_license/pmc_custom_license")
+        );
     }
 
     private String processCord19SourceText (String rawSourceText) {
-        // The ace corpus annotation offests treat newlines as a single character (so \r\n is
-        // changed to \n) and do not count tags (so all tags '<>' and it's enclosing content is
-        // removed)
-        return rawSourceText
-                .replaceAll("\\r\\n", "\n")
-                .replaceAll("<[\\s\\S]*?>", "");
+        final StringBuilder ret = new StringBuilder();
+        final ObjectNode jsonTree;
+        try {
+            jsonTree = (ObjectNode)new ObjectMapper().readTree(rawSourceText);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Title, then a newline
+        String title = jsonTree.get("metadata").get("title").asText();
+        ret.append(title);
+        ret.append("\n\n");
+        // Guard against duplicate section headers
+        String lastSection = null;
+        // Abstract section header, newline, abstract text, newline
+        final JsonNode abstracts = jsonTree.get("abstract");
+        for (JsonNode abstractNode : abstracts) {
+            final String curSection = abstractNode.get("section").asText();
+            if (!curSection.equals(lastSection)) {
+                ret.append(curSection);
+                ret.append("\n\n");
+            }
+            lastSection = curSection;
+            ret.append(abstractNode.get("text").asText());
+            ret.append("\n\n");
+        }
+
+        lastSection = null;
+        for (JsonNode bodyTextNode : jsonTree.get("body_text")) {
+            final String curSection = bodyTextNode.get("section").asText();
+            if (!curSection.equals(lastSection)) {
+                ret.append(curSection);
+                ret.append("\n\n");
+            }
+            lastSection = curSection;
+            ret.append(bodyTextNode.get("text").asText());
+            ret.append("\n\n");
+        }
+
+        for (JsonNode refTextNode : jsonTree.get("ref_entries")) {
+            ret.append(refTextNode.get("text").asText());
+            ret.append("\n\n");
+        }
+
+        return ret.toString();
     }
 }

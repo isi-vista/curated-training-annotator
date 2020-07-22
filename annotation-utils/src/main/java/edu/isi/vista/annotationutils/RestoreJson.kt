@@ -162,8 +162,9 @@ private fun getCord19DocID(filename: String): String? {
     // Returns empty string if not a CORD-19 filename
     // CORD-19 filenames consist of a string of letters and numbers
     // and then the annotator's username
-    // Example: hfofi34yrohwfniw94tyowlefnweiug8iryfhwen38d2h-liz_lee.json
-    val regex = Regex(pattern = """([a-zA-Z0-9]*)-.*\.json""")
+    // Example: hfofi34yrohwfniw94tyowlefnweiug8iryfhwen-john_bob.json
+
+    val regex = Regex(pattern = """([a-z0-9]{30,})-.*""")
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
