@@ -55,11 +55,12 @@ class RestoreJson {
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
+                val englishPattern = Regex("[\b_]ENG[\b_]")
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
                 // returns docID if CORD-19 file, else returns null
                 val cord19DocID = getCord19DocID(filename)
-                if (filename.contains(Regex("[\b_]ENG[\b_]")) || aceDocID != null || cord19DocID != null) {
+                if (filename.contains(englishPattern) || aceDocID != null || cord19DocID != null) {
                     // The project directory is the path to this file with the input directory components
                     // stripped off the front, then joined with the desired output directory.
                     val projectOutDir = Paths.get(
@@ -146,20 +147,22 @@ private fun Path.removePrefixPath(prefix: Path): Path {
 
 
 private fun getAceDocID(filename: String): String? {
-    // Returns empty string if not an AceFileName
+    // Returns null if not an AceFileName
     // Ace filenames contain an event.subtype in the file name
     // Example: CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
     val regex = """(.*_[^a-zA-Z]*)-(.*?)-.*?""".toRegex()
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
-        return matchResult!!.groups[1]!!.value
+        val matchGroups = matchResult!!.groups
+        // match groups = ("<docid>-john_bob.json", "<docid>")
+        return matchGroups[1]!!.value
     }
     return null
 }
 
 private fun getCord19DocID(filename: String): String? {
-    // Returns empty string if not a CORD-19 filename
+    // Returns null if not a CORD-19 filename
     // CORD-19 filenames consist of a string of letters and numbers
     // and then the annotator's username
     // Example: hfofi34yrohwfniw94tyowlefnweiug8iryfhwen-john_bob.json
@@ -169,7 +172,9 @@ private fun getCord19DocID(filename: String): String? {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
         logger.info { "CORD-19 ID: ${matchResult!!.groups[1]!!.value}" }
-        return matchResult!!.groups[1]!!.value
+        val matchGroups = matchResult!!.groups
+        // match groups = ("<docid>-john_bob.json", "<docid>")
+        return matchGroups[1]!!.value
     }
     return null
 }

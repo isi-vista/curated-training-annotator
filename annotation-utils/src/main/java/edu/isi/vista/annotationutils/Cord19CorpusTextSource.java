@@ -61,7 +61,7 @@ public final class Cord19CorpusTextSource implements OriginalTextSource{
             jsonTree = (ObjectNode)new ObjectMapper().readTree(rawSourceText);
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not read CORD-19 source text.");
         }
 
         // Title, then a newline
