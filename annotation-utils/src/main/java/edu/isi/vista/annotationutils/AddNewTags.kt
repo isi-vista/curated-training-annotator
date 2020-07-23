@@ -121,13 +121,14 @@ fun main(argv: Array<String>) {
     val projectsToEventTypes = mutableMapOf<Project, String>()
     for (serverProject in serverProjects) {
         val projectName = serverProject.name
-        var abridgedProjectName = serverProject.name
         // Ignore any language prefixes so that it knows
         // to modify *all* projects of this event type
-        for (language in languagePrefixes) {
-            if (projectName.startsWith(language)) {
-                abridgedProjectName = abridgedProjectName.removePrefix("$language-")
-            }
+        val abridgedProjectName = if (languagePrefixes.any {projectName.startsWith(it)}) {
+            val firstHyphen = projectName.indexOf('-')
+            val language = projectName.substring(0, firstHyphen)
+            projectName.removePrefix("$language-")
+        } else {
+            projectName
         }
         for (eventType in eventTypesToModify) {
             // If the project's name minus language prefix begins with the project name to edit:
@@ -223,7 +224,6 @@ fun main(argv: Array<String>) {
                 // Step 4: import the new projects.
                 logger.info { "Importing project $modifiedZipOutputFile" }
                 retryOnFuelError {
-                    // The documentation is a lie.
                     importUrl.httpUpload()
                             .add(
                                     FileDataPart(
