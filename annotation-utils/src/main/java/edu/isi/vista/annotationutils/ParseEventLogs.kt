@@ -37,6 +37,8 @@ import java.util.*
  *
  */
 
+val bannedStrings = listOf("copy_of", "sandbox", "test")
+
 class ParseEventLogs {
     companion object {
         fun main(argv: Array<String>) {
@@ -46,6 +48,7 @@ class ParseEventLogs {
             // Load parameters
             val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
             val params = paramsLoader.load(File(argv[0]))
+            parseEventLogs(params)
         }
         fun parseEventLogs(params: edu.isi.nlp.parameters.Parameters) {
             val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
@@ -71,7 +74,7 @@ class ParseEventLogs {
                 // Each project should have a file named `event.log` - this
                 // stores the timestamps of each "event" made in the project.
                 val eventLog = File(projectDir.toString(), EVENT_LOG)
-                if (eventLog.exists() && projectInfo != null) {
+                if (eventLog.exists() && projectInfo != null && !bannedStrings.any { projectName.contains(it) }) {
                     val username = projectInfo.username
                     val eventType = projectInfo.eventType
                     logger.info { "Getting time $username spent on $eventType"}
