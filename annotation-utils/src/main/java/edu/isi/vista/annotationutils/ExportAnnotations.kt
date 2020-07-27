@@ -103,11 +103,32 @@ class ExportAnnotations {
                     continue
                 }
 
-                // to reduce clutter, we only make a directory for a project if it in fact has any
-                // annotation
+                // to reduce clutter, we only make a directory and export the
+                // log file for a project if it in fact has any annotation
                 val projectOutputDir = exportedAnnotationRoot.resolve(project.name)
                 if (documents.isNotEmpty()) {
                     Files.createDirectories(projectOutputDir)
+                    // Get export.zip, which contains the project's log file
+                    val exportZip = retryOnFuelError {
+                        getExportUrl.httpGet()
+                                .authenticateToInception()
+                                .timeoutRead(130000)  // larger projects take longer to read
+                                .retryOnResponseFailure()
+                    }
+                    // Get `event.log` from the resulting .zip export
+                    // and save it to the project output directory
+                    if (exportZip != null) {
+                        val inMemoryFileSystem = Jimfs.newFileSystem(Configuration.unix())
+                        val exportInMemoryZip = inMemoryFileSystem.getPath("/export.zip")
+                        Files.write(exportInMemoryZip, exportZip)
+                        val zipOutputFile = File(projectOutputDir.toString(), EVENT_LOG)
+                        ZipFile(exportInMemoryZip).use {
+                            val eventLog = it.getInputStream(EVENT_LOG)?.readBytes()
+                            if (eventLog != null) {
+                                Files.write(zipOutputFile.toPath(), eventLog)
+                            }
+                        }
+                    }
                 }
                 for (document in documents) {
                     // each annotator's annotation for a document are stored separately
@@ -191,31 +212,6 @@ class ExportAnnotations {
                                 Files.write(outFileName, redactedJsonString.toByteArray())
                             } else {
                                 throw RuntimeException("Corrupt zip file returned")
-                            }
-                        }
-                    }
-                }
-                // To save time and reduce clutter, only extract the log file if
-                // the project directory contains .json output.
-                val projectOutputFiles = projectOutputDir.toFile().listFiles()?.size ?: 0
-                if (projectOutputFiles > 0) {
-                    // Get export.zip, which contains the project's log file
-                    val exportZip = retryOnFuelError {
-                        getExportUrl.httpGet()
-                                .authenticateToInception()
-                                .retryOnResponseFailure()
-                    }
-                    // Get `event.log` from the resulting .zip export
-                    // and save it to the project output directory
-                    if (exportZip != null) {
-                        val inMemoryFileSystem = Jimfs.newFileSystem(Configuration.unix())
-                        val exportInMemoryZip = inMemoryFileSystem.getPath("/export.zip")
-                        Files.write(exportInMemoryZip, exportZip)
-                        val zipOutputFile = File(projectOutputDir.toString(), EVENT_LOG)
-                        ZipFile(exportInMemoryZip).use {
-                            val eventLog = it.getInputStream(EVENT_LOG)?.readBytes()
-                            if (eventLog != null) {
-                                Files.write(zipOutputFile.toPath(), eventLog)
                             }
                         }
                     }
