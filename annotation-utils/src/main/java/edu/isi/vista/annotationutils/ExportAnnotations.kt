@@ -44,7 +44,7 @@ const val EVENT_LOG = "event.log"
  *  </ul>
  */
 
-private data class Project(val id: Long, val name: String)
+data class Project(val id: Long, val name: String)
 class ExportAnnotations {
     companion object {
         fun main(argv: Array<String>) {
@@ -226,7 +226,7 @@ class ExportAnnotations {
     }
 }
 
-private data class Document(val id: Long, val name: String, val state: String) {
+data class Document(val id: Long, val name: String, val state: String) {
     init {
         if (name.isEmpty()) {
             throw IllegalArgumentException("Documents cannot have empty names")
@@ -234,11 +234,11 @@ private data class Document(val id: Long, val name: String, val state: String) {
     }
 }
 
-private data class DocumentResult(val messages: List<String>, val body: List<Document>)
+data class DocumentResult(val messages: List<String>, val body: List<Document>)
 private data class AnnotatorRecord(val user: String, val state: String, val timestamp: String?)
-private data class AeroResult<T>(val messages: List<String>, val body: List<T>)
+data class AeroResult<T>(val messages: List<String>, val body: List<T>)
 
-private inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFailure(
+inline fun <reified T : Any> Request.resultObjectThrowingExceptionOnFailure(
         mapper: ObjectMapper
 ): T {
     val (_, _, result) = this.responseObject<T>(mapper)
@@ -270,7 +270,7 @@ fun <T> retryOnFuelError(maxTries: Int = 3, timeoutInSeconds: Long = 5, function
 }
 
 
-private fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5): ByteArray? {
+fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5): ByteArray? {
     for (i in 1..maxTries) {
         val (_, _, result) = this.response()
         when (result) {
