@@ -218,12 +218,7 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pai
             if (documentName != currentDocument) {
                 // The user has entered a new document.
                 // Record the time elapsed and "restart the timer."
-                val previousDocumentTime = documentTimeMap[currentDocument.toString()]
-                if (previousDocumentTime != null) {
-                    documentTimeMap[currentDocument.toString()] = previousDocumentTime + documentTimeElapsed
-                } else {
-                    documentTimeMap[currentDocument.toString()] = documentTimeElapsed
-                }
+                updateDocumentTimeMap(documentTimeMap, documentTimeElapsed, currentDocument.toString())
                 documentTimeElapsed = 0
                 currentDocument = documentName
             }
@@ -233,7 +228,23 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pai
         }
     }
     // All events in this Inception project have been processed.
+    // Record the elapsed time for the last document.
+    updateDocumentTimeMap(documentTimeMap, documentTimeElapsed, currentDocument.toString())
     // Sum up the times from each document to get the total time
     // spent on this project.
     return Pair<Long, Set<String>>(documentTimeMap.map { it.value }.sum()/1000, indicatorSet)
 }
+
+private fun updateDocumentTimeMap(
+        documentTimeMap: MutableMap<String, Long>,
+        timeElapsed: Long,
+        document: String
+) {
+    val previousDocumentTime = documentTimeMap[document]
+    if (previousDocumentTime != null) {
+        documentTimeMap[document] = previousDocumentTime + timeElapsed
+    } else {
+        documentTimeMap[document] = timeElapsed
+    }
+}
+
