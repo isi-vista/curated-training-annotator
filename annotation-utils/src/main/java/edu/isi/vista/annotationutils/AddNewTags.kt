@@ -171,7 +171,7 @@ fun main(argv: Array<String>) {
                         )
                 )
                 for (projectFile in it) {
-                    val inMemoryProjectPath = inMemoryFileSystem.getPath("/${projectFile.name}")
+                    val inMemoryProjectPath = inMemoryFileSystem.getPath(projectFile.name)
                     val projectBytes = it.getInputStream(projectFile.name)?.readBytes()
                     if (projectBytes != null) {
                         if (inMemoryProjectPath.count() > 1) {
@@ -186,7 +186,7 @@ fun main(argv: Array<String>) {
                         val jsonBytes = it.getInputStream(projectFile.name)?.readBytes()
                         if (jsonBytes != null) {
                             Files.delete(inMemoryProjectPath)
-                            val inMemoryJson = inMemoryFileSystem.getPath("/${projectFile.name}")
+                            val inMemoryJson = inMemoryFileSystem.getPath(projectFile.name)
                             val jsonTree = objectMapper.readTree(jsonBytes)
                             val arguments = eventTypesToNewTags[project.value]
                             replaceProject = addArgumentsToJson(jsonTree, project.key.name, arguments)
