@@ -27,10 +27,20 @@ import java.io.IOException;
  *     <li> {@code indexDirectory} is the location of the files produced by {@code IndexFlatGigaword.java}
 (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
  *     <li> {@code gigawordDataDirectory} is the location of the gigaword text files </li>
- *     <li> {@code aceEngDataDirectory} is the data/English directory of the ace corpus files</li>
  *     <li> {@code inputJsonDirectory} is the location of the stripped json files produced by {@code ExportAnnotations.kt} </li>
  *     <li> {@code restoredJsonDirectory} is where the new json files will go </li>
  *  </ul>
+ *
+ *  The optional parameters listed below are for selecting non-English/other projects to restore.
+ *  <ul>
+ *      <li> `restoreAce` - if false, the program will skip restoring the text of ACE project documents.
+ *      True by default if `aceEngDataDirectory` has a value, false if not.</li>
+ *      <li> `aceEngDataDirectory` is the data/English directory of the ace corpus files.</li>
+ *      <li> `restoreCord19` - if false, the program will skip restoring the text of CORD-19 project documents.
+ *      True by default if `cord19DataDirectory` has a value, false if not.</li>
+ *      <li> `cord19DataDirectory` is the data directory of the covid19 corpus files.</li>
+ *  </ul>
+ *
  */
 
 class RestoreJson {
@@ -45,13 +55,23 @@ class RestoreJson {
         fun restore(params: Parameters) {
             val inputJsonDirectory = params.getExistingDirectory("inputJsonDirectory")!!
             val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")!!
+            val restoreAce = params.getOptionalBoolean("restoreAce").or(
+                    params.isPresent("aceEngDataDirectory")
+            )
+            val restoreCord19 = params.getOptionalBoolean("restoreCord19").or(
+                    params.isPresent("cord19DataDirectory")
+            )
 
             // Make objects for reading, parsing, and writing json:
             val objectMapper = ObjectMapper()
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
             val gigaWordTextSource = makeTextSource(params, "gigaword")
-            val aceTextSource = makeTextSource(params, "ace")
-            val cord19TextSource = makeTextSource(params, "covid19")
+            val aceTextSource = if (restoreAce) {
+                makeTextSource(params, "ace")
+            } else {null}
+            val cord19TextSource = if (restoreCord19) {
+                makeTextSource(params, "covid19")
+            } else {null}
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
@@ -73,29 +93,35 @@ class RestoreJson {
                     val jsonTree = objectMapper.readTree(jsonFile)
                     // If aceDocID is empty, it means the document being processed is not an
                     // ace document
-                    val text = if(aceDocID != null) {
+                    val text = if(restoreAce && aceDocID != null) {
                         // If it is an Ace doc: Filename contains event_type.subtype
                         // Example Filename is:
                         // CNNHL_ENG_20030304_142751.10-Business.Declare-Bankruptcy.xmi-liz_lee.json
                         val docID = Symbol.from(aceDocID)
-                        aceTextSource.getOriginalText(docID).orNull()
+                        aceTextSource!!.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
-                    } else if (cord19DocID != null) {
+                    } else if (restoreCord19 && cord19DocID != null) {
                         val docID = Symbol.from(cord19DocID)
-                        cord19TextSource.getOriginalText(docID).orNull()
+                        cord19TextSource!!.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
-                    } else {
+                    } else if (aceDocID == null && filename.contains(englishPattern)) {
                         // If it is a Gigaword doc: First 21 characters of the filename are the
                         // document id
                         // Example filename is AFP_ENG_19960918.0012-admin.json
                         val docID = Symbol.from(filename.substring(0, 21))
                         gigaWordTextSource.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
+                    } else {null}
+                    if (text != null) {
+                        jsonTree.replaceFieldEverywhere("sofaString", text)
+                        val outFile = File(projectOutDir.toString(), filename)
+                        outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
+                        logger.info { "Restored $filename" }
+                    } else {
+                        logger.info {
+                            "Skipping $filename because you indicated not to restore documents of this type."
+                        }
                     }
-                    jsonTree.replaceFieldEverywhere("sofaString", text)
-                    val outFile = File(projectOutDir.toString(), filename)
-                    outFile.writeBytes(prettyPrinter.writeValueAsBytes(jsonTree))
-                    logger.info { "Restored $filename" }
                 } else {
                     logger.warn { "Cannot restore $filename, only English is supported" }
                 }
@@ -171,7 +197,6 @@ private fun getCord19DocID(filename: String): String? {
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
-        logger.info { "CORD-19 ID: ${matchResult!!.groups[1]!!.value}" }
         val matchGroups = matchResult!!.groups
         // match groups = ("<docid>-john_bob.json", "<docid>")
         return matchGroups[1]!!.value
