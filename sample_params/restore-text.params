@@ -1,6 +1,8 @@
 aceEngDataDirectory:
 cord19DataDirectory:
 gigawordDataDirectory: /Users/admin/giga/gigaword_eng_5/data/
-indexDirectory: /Users/admin/giga/indices/
+spanishDataDirectory: /Users/admin/spa_gw_3/data/
+indexDirectory: /Users/admin/giga/indices/eng/
+spanishIndexDirectory: /Users/admin/giga/indices/spa/
 inputJsonDirectory: /Users/admin/giga/export/
 restoredJsonDirectory: /Users/admin/giga/restored/

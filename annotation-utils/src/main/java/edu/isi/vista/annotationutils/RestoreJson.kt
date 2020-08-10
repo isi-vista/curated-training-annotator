@@ -39,6 +39,11 @@ import java.io.IOException;
  *      <li> `restoreCord19` - if false, the program will skip restoring the text of CORD-19 project documents.
  *      True by default if `cord19DataDirectory` has a value, false if not.</li>
  *      <li> `cord19DataDirectory` is the data directory of the covid19 corpus files.</li>
+ *      <li> `restoreSpanish` - if false, the program will skip restoring the text of Spanish gigaword documents.
+ *      True by default if `spanishDataDirectory` has a value, false if not.</li>
+ *      <li> `spanishDataDirectory` is the location of the Spanish gigaword text files.</li>
+ *      <li> `spanishIndexDirectory` is the location of the files produced by `IndexFlatGigaword.java`
+ *      for Spanish.</li>
  *  </ul>
  *
  */
@@ -61,11 +66,17 @@ class RestoreJson {
             val restoreCord19 = params.getOptionalBoolean("restoreCord19").or(
                     params.isPresent("cord19DataDirectory")
             )
+            val restoreSpanish = params.getOptionalBoolean("restoreSpanish").or(
+                    params.isPresent("spanishDataDirectory")
+            )
 
             // Make objects for reading, parsing, and writing json:
             val objectMapper = ObjectMapper()
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
             val gigaWordTextSource = makeTextSource(params, "gigaword")
+            val spanishTextSource = if (restoreSpanish) {
+                makeTextSource(params, "spanish-gigaword")
+            } else {null}
             val aceTextSource = if (restoreAce) {
                 makeTextSource(params, "ace")
             } else {null}
@@ -76,11 +87,13 @@ class RestoreJson {
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
                 val englishPattern = Regex("[\b_]ENG[\b_]")
+                val russianPattern = Regex("RUS[\b_]")
+                val spanishPattern = Regex("[\b_]SPA[\b_]")
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
                 // returns docID if CORD-19 file, else returns null
                 val cord19DocID = getCord19DocID(filename)
-                if (filename.contains(englishPattern) || aceDocID != null || cord19DocID != null) {
+                if (filename.endsWith(".json") && !filename.contains(russianPattern)) {
                     // The project directory is the path to this file with the input directory components
                     // stripped off the front, then joined with the desired output directory.
                     val projectOutDir = Paths.get(
@@ -104,10 +117,14 @@ class RestoreJson {
                         val docID = Symbol.from(cord19DocID)
                         cord19TextSource!!.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
-                    } else if (aceDocID == null && filename.contains(englishPattern)) {
+                    } else if (restoreSpanish && filename.contains(spanishPattern)) {
                         // If it is a Gigaword doc: First 21 characters of the filename are the
                         // document id
                         // Example filename is AFP_ENG_19960918.0012-admin.json
+                        val docID = Symbol.from(filename.substring(0, 21))
+                        spanishTextSource!!.getOriginalText(docID).orNull()
+                                ?: throw RuntimeException("Could not get original text for $docID")
+                    } else if (aceDocID == null && filename.contains(englishPattern)) {
                         val docID = Symbol.from(filename.substring(0, 21))
                         gigaWordTextSource.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
@@ -123,7 +140,7 @@ class RestoreJson {
                         }
                     }
                 } else {
-                    logger.warn { "Cannot restore $filename, only English is supported" }
+                    logger.warn { "Cannot restore $filename; this file or project type is not supported" }
                 }
             }
         }
@@ -132,13 +149,22 @@ class RestoreJson {
 
 fun makeTextSource(params: Parameters, corpusName: String): OriginalTextSource {
     // Create an OriginalTextSource for getting original document text to put in json:
-    if(corpusName.equals("gigaword", ignoreCase = true)) {
+    if (corpusName.equals("gigaword", ignoreCase = true)) {
         // Create the gigaword corpus TextSource
         val textMap = DocIDToFileMappings.forFunction { symbol ->
             Optional.of(File(params.getExistingDirectory("gigawordDataDirectory"), docIDToFilename(symbol)))
         }
         val indexMap = DocIDToFileMappings.forFunction { symbol ->
             Optional.of(File(params.getExistingDirectory("indexDirectory"), docIDToFilename(symbol) + ".index"))
+        }
+        return OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
+    } else if (corpusName.equals("spanish-gigaword", ignoreCase = true)) {
+        // Create the spanish-gigaword corpus TextSource
+        val textMap = DocIDToFileMappings.forFunction { symbol ->
+            Optional.of(File(params.getExistingDirectory("spanishDataDirectory"), docIDToFilename(symbol)))
+        }
+        val indexMap = DocIDToFileMappings.forFunction { symbol ->
+            Optional.of(File(params.getExistingDirectory("spanishIndexDirectory"), docIDToFilename(symbol) + ".index"))
         }
         return OffsetIndexedCorpus.fromTextAndOffsetFiles(textMap, indexMap)
 
