@@ -96,7 +96,6 @@ class RestoreJson {
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
                 val englishPattern = Regex("[\b_]ENG[\b_]")
-                val russianPattern = Regex("RUS[\b_]")
                 val spanishPattern = Regex("[\b_]SPA[\b_]")
                 //returns docID if ace file, else returns null
                 val aceDocID = getAceDocID(filename)
@@ -150,7 +149,7 @@ class RestoreJson {
                         logger.info { "Restored $filename" }
                     } else {
                         logger.info {
-                            "Skipping $filename because you indicated not to restore documents of this type."
+                            "Skipping $filename"
                         }
                     }
                 } else {
@@ -193,7 +192,7 @@ fun makeTextSource(params: Parameters, corpusName: String): OriginalTextSource {
         return RussianCorpusTextSource(params.getExistingDirectory("russianDataDirectory"))
     }
     else {
-        throw IOException("A corpus: " + corpusName + " does not exist.");
+        throw IOException("A corpus: $corpusName does not exist.");
     }
 }
 
@@ -202,7 +201,7 @@ fun docIDToFilename(symbol: Symbol?): String {
         throw RuntimeException("Got null symbol")
     }
     // e.g. AFP_ENG_19960918.0012 -> afp_eng/afp_eng_199609
-    val st = symbol?.asString()?.toLowerCase()
+    val st = symbol.asString()?.toLowerCase()
     val dir = st?.substring(0, 7) //
     val basename = st?.substring(0, 14)
     return Paths.get(dir, basename).toString()
@@ -254,7 +253,7 @@ private fun getRussianDocID(filename: String): String? {
     // starting with "RUS_"
     // Example: RUS_DF_579382_839572091_P861983UGN-john_bob.json
 
-    val regex = Regex(pattern = """(RUS_[A-Z]{2}_[A-Z0-9]{6}_[A-Z0-9]{8,}_[A-Z0-9]{9})-.*""")
+    val regex = Regex(pattern = """(RUS_[A-Z]{2}_[A-Z0-9]{6}_[A-Z0-9]{8}_[A-Z0-9]{9})-.*""")
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
