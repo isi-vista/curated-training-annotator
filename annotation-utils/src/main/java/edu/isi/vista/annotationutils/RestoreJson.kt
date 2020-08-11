@@ -39,6 +39,9 @@ import java.io.IOException;
  *      <li> `restoreCord19` - if false, the program will skip restoring the text of CORD-19 project documents.
  *      True by default if `cord19DataDirectory` has a value, false if not.</li>
  *      <li> `cord19DataDirectory` is the data directory of the covid19 corpus files.</li>
+ *      <li> `restoreRussian` - if false, the program will skip restoring the text of Russian LTF documents.
+ *      True by default if `russianDataDirectory` has a value, false if not.</li>
+ *      <li> `russianDataDirectory` is the location of the Russian LTF corpus files.</li>
  *      <li> `restoreSpanish` - if false, the program will skip restoring the text of Spanish gigaword documents.
  *      True by default if `spanishDataDirectory` has a value, false if not.</li>
  *      <li> `spanishDataDirectory` is the location of the Spanish gigaword text files.</li>
@@ -66,6 +69,9 @@ class RestoreJson {
             val restoreCord19 = params.getOptionalBoolean("restoreCord19").or(
                     params.isPresent("cord19DataDirectory")
             )
+            val restoreRussian = params.getOptionalBoolean("restoreRussian").or(
+                    params.isPresent("russianDataDirectory")
+            )
             val restoreSpanish = params.getOptionalBoolean("restoreSpanish").or(
                     params.isPresent("spanishDataDirectory")
             )
@@ -83,6 +89,9 @@ class RestoreJson {
             val cord19TextSource = if (restoreCord19) {
                 makeTextSource(params, "covid19")
             } else {null}
+            val russianTextSource = if (restoreRussian) {
+                makeTextSource(params, "russian-ltf")
+            } else {null}
 
             inputJsonDirectory.walk().filter { it.isFile }.forEach { jsonFile ->
                 val filename = jsonFile.name
@@ -93,7 +102,8 @@ class RestoreJson {
                 val aceDocID = getAceDocID(filename)
                 // returns docID if CORD-19 file, else returns null
                 val cord19DocID = getCord19DocID(filename)
-                if (filename.endsWith(".json") && !filename.contains(russianPattern)) {
+                val russianDocID = getRussianDocID(filename)
+                if (filename.endsWith(".json")) {
                     // The project directory is the path to this file with the input directory components
                     // stripped off the front, then joined with the desired output directory.
                     val projectOutDir = Paths.get(
@@ -116,6 +126,10 @@ class RestoreJson {
                     } else if (restoreCord19 && cord19DocID != null) {
                         val docID = Symbol.from(cord19DocID)
                         cord19TextSource!!.getOriginalText(docID).orNull()
+                                ?: throw RuntimeException("Could not get original text for $docID")
+                    } else if (restoreRussian && russianDocID != null) {
+                        val docID = Symbol.from(russianDocID)
+                        russianTextSource!!.getOriginalText(docID).orNull()
                                 ?: throw RuntimeException("Could not get original text for $docID")
                     } else if (restoreSpanish && filename.contains(spanishPattern)) {
                         // If it is a Gigaword doc: First 21 characters of the filename are the
@@ -174,7 +188,11 @@ fun makeTextSource(params: Parameters, corpusName: String): OriginalTextSource {
     } else if (corpusName.equals("covid19", ignoreCase = true)) {
         // Create the CORD-19 corpus TextSource
         return Cord19CorpusTextSource(params.getExistingDirectory("cord19DataDirectory"))
-    } else {
+    } else if (corpusName.equals("russian-ltf", ignoreCase = true)) {
+        // Create the Russian corpus TextSource
+        return RussianCorpusTextSource(params.getExistingDirectory("russianDataDirectory"))
+    }
+    else {
         throw IOException("A corpus: " + corpusName + " does not exist.");
     }
 }
@@ -220,6 +238,23 @@ private fun getCord19DocID(filename: String): String? {
     // Example: hfofi34yrohwfniw94tyowlefnweiug8iryfhwen-john_bob.json
 
     val regex = Regex(pattern = """([a-z0-9]{30,})-.*""")
+    if (regex.containsMatchIn(filename)) {
+        val matchResult = regex.find(filename)
+        //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
+        val matchGroups = matchResult!!.groups
+        // match groups = ("<docid>-john_bob.json", "<docid>")
+        return matchGroups[1]!!.value
+    }
+    return null
+}
+
+private fun getRussianDocID(filename: String): String? {
+    // Returns null if not a Russian filename
+    // Russian filenames consist of a string of letters and numbers
+    // starting with "RUS_"
+    // Example: RUS_DF_579382_839572091_P861983UGN-john_bob.json
+
+    val regex = Regex(pattern = """(RUS_[A-Z]{2}_[A-Z0-9]{6}_[A-Z0-9]{8,}_[A-Z0-9]{9})-.*""")
     if (regex.containsMatchIn(filename)) {
         val matchResult = regex.find(filename)
         //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
