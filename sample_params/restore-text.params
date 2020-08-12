@@ -1,7 +1,7 @@
 aceEngDataDirectory:
 cord19DataDirectory:
 gigawordDataDirectory: /Users/admin/giga/gigaword_eng_5/data/
-russianDataDirectory: /Users/admin/corpora/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1/data/monolingual_text/unzipped/ltf/
+russianDataDirectory: /Users/admin/corpora/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1/
 spanishDataDirectory: /Users/admin/spa_gw_3/data/
 indexDirectory: /Users/admin/giga/indices/eng/
 spanishIndexDirectory: /Users/admin/giga/indices/spa/

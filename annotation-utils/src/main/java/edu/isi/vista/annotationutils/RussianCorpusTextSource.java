@@ -24,7 +24,9 @@ public final class RussianCorpusTextSource implements OriginalTextSource{
     public Optional<String> getOriginalText(final Symbol docID) throws IOException {
         Optional<CharSource> russianCharSource = Optional.absent();
         // Search and find file in unzipped/ltf/
-        File sourceDocFile = new File(russianDataDirectory, docID.toString() + ".ltf.xml");
+        File sourceDocFile = new File(
+                russianDataDirectory + "/data/monolingual_text/unzipped/ltf/" + docID.toString() + ".ltf.xml"
+        );
         if(sourceDocFile.exists()) {
             russianCharSource =
                     Optional.of(Files.asCharSource(sourceDocFile, Charsets.UTF_8));

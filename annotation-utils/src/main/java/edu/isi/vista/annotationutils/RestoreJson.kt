@@ -251,7 +251,7 @@ private fun getRussianDocID(filename: String): String? {
     // Returns null if not a Russian filename
     // Russian filenames consist of a string of letters and numbers
     // starting with "RUS_"
-    // Example: RUS_DF_579382_839572091_P861983UGN-john_bob.json
+    // Example: RUS_DF_579382_08212053_P861983UGN-john_bob.json
 
     val regex = Regex(pattern = """(RUS_[A-Z]{2}_[A-Z0-9]{6}_[A-Z0-9]{8}_[A-Z0-9]{9})-.*""")
     if (regex.containsMatchIn(filename)) {
