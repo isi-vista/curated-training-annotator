@@ -538,19 +538,34 @@ class ExtractAnnotationStats {
                             th {+"User"}
                             th {+"Total sentences"}
                             th {+"New sentences"}
+                            th {+"Avg. sentences/hour"}
                         }
                         for (user in newAnnotationStats.byUser.keys) {
+                            val totalUserSentences = newAnnotationStats.byUser[user]
                             tr {
-                                td {+"$user"}
-                                td {+"${newAnnotationStats.byUser[user]}"}
+                                td { +user }
+                                td { +"$totalUserSentences" }
                                 if (annotationDiffs == null) {
-                                    td {+"n/a"}
+                                    td { +"n/a" }
+                                } else if (annotationDiffs.byUser[user] == null) {
+                                    td { +"${newAnnotationStats.byUser[user]}" }
+                                } else {
+                                    td { +"${annotationDiffs.byUser[user]}" }
                                 }
-                                else if (annotationDiffs.byUser[user] == null) {
-                                    td {+"${newAnnotationStats.byUser[user]}"}
-                                }
-                                else {
-                                    td {+"${annotationDiffs.byUser[user]}"}
+                                if (annotationTimes != null && totalUserSentences != null) {
+                                    var totalUserSeconds = 0.toFloat()
+                                    for (projectInfo in annotationTimes[user].fields()) {
+                                        val project = projectInfo.key
+                                        // Skip ACE projects since they are quicker to finish than
+                                        // regular tasks
+                                        if (!project.contains("ACE-")) {
+                                            totalUserSeconds += annotationTimes[user][project]["seconds"]
+                                                    .toString().toFloat()
+                                        }
+                                    }
+                                    td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
+                                } else {
+                                    td { +"n/a" }
                                 }
                             }
                         }
@@ -603,9 +618,6 @@ class ExtractAnnotationStats {
                                     val fullProjectName = "$project-$username"
                                     val secondsDiff = annotationDiffs?.annotationTimes?.get(fullProjectName)
                                     val projectSentenceCount = allProjectCounts[fullProjectName] ?: 0
-                                    val sentencesPerHour = (
-                                            (projectSentenceCount.toFloat()/(totalSeconds/3600))
-                                            )
                                     tr {
                                         // For a nicer appearance,
                                         // only print the username once
@@ -622,7 +634,7 @@ class ExtractAnnotationStats {
                                         } else {
                                             td {+totalTime}
                                         }
-                                        td {+"%.2f".format(sentencesPerHour)}
+                                        td {+getSentencesPerHour(projectSentenceCount, totalSeconds)}
                                         firstProjectForUser = false
                                     }
                                 }
@@ -660,6 +672,14 @@ private fun getSentenceCountsByProject(sentenceList: List<SentenceAnnotation>): 
         }
     }
     return projectCounts
+}
+
+private fun getSentencesPerHour(sentenceCount: Int, secondsCount: Float): String {
+    return if (secondsCount > 0.0) {
+        "%.2f".format(sentenceCount.toFloat()/(secondsCount/3600))
+    } else {
+        "n/a"
+    }
 }
 
 data class SentenceAnnotation(
