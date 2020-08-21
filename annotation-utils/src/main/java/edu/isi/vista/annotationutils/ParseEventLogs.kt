@@ -74,7 +74,7 @@ class ParseEventLogs {
                 // Each project should have a file named `event.log` - this
                 // stores the timestamps of each "event" made in the project.
                 val eventLog = File(projectDir.toString(), EVENT_LOG)
-                if (eventLog.exists() && projectInfo != null && !bannedStrings.any { projectName.contains(it) }) {
+                if (isValidLog(eventLog, projectName) && projectInfo != null) {
                     val username = projectInfo.username
                     val eventType = projectInfo.eventType
                     logger.info { "Getting time $username spent on $eventType"}
@@ -133,6 +133,11 @@ data class ProjectInfo(
         var annotationTime: Long
 ) {
     val formattedTime get() = secondsToHMS(annotationTime)
+}
+
+private fun isValidLog(eventLog: File, projectName: String): Boolean {
+    val hasBannedStrings = bannedStrings.any { projectName.contains(it) }
+    return eventLog.exists() && !hasBannedStrings
 }
 
 fun secondsToHMS(seconds: Long): String {
