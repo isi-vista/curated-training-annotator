@@ -37,6 +37,8 @@ import java.util.*
  *
  */
 
+val bannedStrings = listOf("copy_of", "sandbox", "test")
+
 class ParseEventLogs {
     companion object {
         fun main(argv: Array<String>) {
@@ -73,7 +75,7 @@ class ParseEventLogs {
                 // Each project should have a file named `event.log` - this
                 // stores the timestamps of each "event" made in the project.
                 val eventLog = File(projectDir.toString(), EVENT_LOG)
-                if (eventLog.exists() && projectInfo != null) {
+                if (isValidLog(eventLog, projectName) && projectInfo != null) {
                     val username = projectInfo.username
                     val eventType = projectInfo.eventType
                     logger.info { "Getting time $username spent on $eventType"}
@@ -165,6 +167,11 @@ data class ProjectInfo(
     val formattedTime get() = secondsToHMS(annotationTime)
 }
 
+private fun isValidLog(eventLog: File, projectName: String): Boolean {
+    val hasBannedStrings = bannedStrings.any { projectName.contains(it) }
+    return eventLog.exists() && !hasBannedStrings
+}
+
 fun secondsToHMS(seconds: Long): String {
     val hours = seconds/3600
     val minutes = (seconds/60)%60
@@ -251,12 +258,7 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pai
             if (documentName != currentDocument) {
                 // The user has entered a new document.
                 // Record the time elapsed and "restart the timer."
-                val previousDocumentTime = documentTimeMap[currentDocument.toString()]
-                if (previousDocumentTime != null) {
-                    documentTimeMap[currentDocument.toString()] = previousDocumentTime + documentTimeElapsed
-                } else {
-                    documentTimeMap[currentDocument.toString()] = documentTimeElapsed
-                }
+                updateDocumentTimeMap(documentTimeMap, documentTimeElapsed, currentDocument.toString())
                 documentTimeElapsed = 0
                 currentDocument = documentName
             }
@@ -266,7 +268,23 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pai
         }
     }
     // All events in this Inception project have been processed.
+    // Record the elapsed time for the last document.
+    updateDocumentTimeMap(documentTimeMap, documentTimeElapsed, currentDocument.toString())
     // Sum up the times from each document to get the total time
     // spent on this project.
     return Pair<Long, Set<String>>(documentTimeMap.map { it.value }.sum()/1000, indicatorSet)
 }
+
+private fun updateDocumentTimeMap(
+        documentTimeMap: MutableMap<String, Long>,
+        timeElapsed: Long,
+        document: String
+) {
+    val previousDocumentTime = documentTimeMap[document]
+    if (previousDocumentTime != null) {
+        documentTimeMap[document] = previousDocumentTime + timeElapsed
+    } else {
+        documentTimeMap[document] = timeElapsed
+    }
+}
+
