@@ -110,6 +110,11 @@ fun main(argv: Array<String>) {
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
+    if (params.isPresent("originalLogsRoot")) {
+        extractAnnotationStatsParamsBuilder.set(
+                "originalLogsRoot", params.getExistingDirectory("originalLogsRoot").absolutePath
+        )
+    }
     extractAnnotationStatsParamsBuilder.set(
             "indicatorSearchesRoot", params.getCreatableDirectory("indicatorSearchesRoot").absolutePath
     )

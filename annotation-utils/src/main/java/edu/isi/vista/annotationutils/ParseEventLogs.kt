@@ -46,9 +46,11 @@ class ParseEventLogs {
             // Load parameters
             val paramsLoader = SerifStyleParameterFileLoader.Builder().build()
             val params = paramsLoader.load(File(argv[0]))
+            parseEventLogs(params)
         }
         fun parseEventLogs(params: edu.isi.nlp.parameters.Parameters) {
             val exportedAnnotationRoot = params.getExistingDirectory("exportedAnnotationRoot")
+            val originalLogsRoot = params.getOptionalExistingDirectory("originalLogsRoot").orNull()
             val indicatorSearchesRoot = params.getCreatableDirectory("indicatorSearchesRoot")
             val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
 
@@ -90,9 +92,24 @@ class ParseEventLogs {
                     logger.info { "Skipping $projectName"}
                 }
             }
+            // If there is a directory of original log files, include that data
+            originalLogsRoot?.walk()?.filter { it.isDirectory }?.forEach { projectDir ->
+                val projectName = projectDir.name
+                val projectInfo = getProjectInfo(projectName)
+                val eventLog = File(projectDir.toString(), EVENT_LOG)
+                if (eventLog.exists() && projectInfo != null) {
+                    val username = projectInfo.username
+                    logger.info { "Including data from original log of $projectName" }
+                    val jsonEvents = convertEventsToJson(eventLog)
+                    val parseResult = parseProjectEvents(jsonEvents, username)
+                    projectInfo.indicators = parseResult.second
+                    projectInfo.annotationTime = parseResult.first
+                    allProjectInfo.add(projectInfo)
+                }
+            }
             // Write indicator lists and time data to output file
             val usersToProjectTimes = mutableMapOf<String, Map<String, Map<String, Any>>>()
-            val usersToIndicatorLists = mutableMapOf<String, Map<String, Set<String>>>()
+            val usersToIndicatorLists = mutableMapOf<String, Map<String, MutableSet<String>>>()
             // Mapping of users to projects to times
             // These will be printed to the output file.
             // For now we are only outputting the times spent on each project;
@@ -102,16 +119,32 @@ class ParseEventLogs {
             for (userItem in projectsByUser) {
                 val user = userItem.component1()
                 val userProjects = userItem.component2()
-                val projectsToIndicatorListsMap = userProjects.map {
+                val projectsToIndicatorLists = userProjects.map {
                     it.eventType to it.indicators
-                }.toMap().toSortedMap()
-                val projectsToTimesMap = userProjects.map {
-                    it.eventType to mapOf<String, Any>(
+                }
+                val projectsToIndicatorListsMap = mutableMapOf<String, MutableSet<String>>()
+                        .withDefault { mutableSetOf() }
+                for (pair in projectsToIndicatorLists) {
+                    projectsToIndicatorListsMap.getValue(pair.first).union(pair.second)
+                }
+                val projectsToIndicatorListsSortedMap = projectsToIndicatorListsMap.toMap().toSortedMap()
+                val projectsToTimes = userProjects.map {
+                    it.eventType to mapOf(
                             "seconds" to it.annotationTime, "formatted" to it.formattedTime
                     )
-                }.toMap().toSortedMap()
-                usersToIndicatorLists[user] = projectsToIndicatorListsMap
-                usersToProjectTimes[user] = projectsToTimesMap
+                }
+                val projectsToTimesMap = mutableMapOf<String, Map<String, Any>>()
+                        .withDefault { mapOf("seconds" to 0, "formatted" to "0h:0m:0s") }
+                for (pair in projectsToTimes) {
+                    val originalTime = projectsToTimesMap.getValue(pair.first)
+                    val originalSeconds = originalTime["seconds"].toString().toLong()
+                    val newSeconds = pair.second["seconds"].toString().toLong() + originalSeconds
+                    val newFormatted = secondsToHMS(newSeconds)
+                    projectsToTimesMap[pair.first] = mapOf("seconds" to newSeconds, "formatted" to newFormatted)
+                }
+                val projectsToTimesSortedMap = projectsToTimesMap.toMap().toSortedMap()
+                usersToIndicatorLists[user] = projectsToIndicatorListsSortedMap
+                usersToProjectTimes[user] = projectsToTimesSortedMap
             }
             val indicatorListsOutfile = File(indicatorSearchesRoot, "indicatorSearches-$thisDate.json")
             val timesOutfile = File(timeReportRoot, "totalAnnotationTimes-$thisDate.json")

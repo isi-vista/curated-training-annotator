@@ -10,6 +10,7 @@ gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
 restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/restored
 
+originalLogsRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/original-logs
 indicatorSearchesRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/indicator-searches
 timeReportRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/timeReports
 statisticsDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/annotation-statistics
