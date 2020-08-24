@@ -537,14 +537,22 @@ class ExtractAnnotationStats {
                         tr {
                             th {+"User"}
                             th {+"Total sentences"}
+                            th {+"Positive"}
+                            th {+"Negative"}
                             th {+"New sentences"}
                             th {+"Avg. sentences/hour"}
                         }
+                        val sentencesByUser = allSentences.groupBy { it.user }
                         for (user in newAnnotationStats.byUser.keys) {
                             val totalUserSentences = newAnnotationStats.byUser[user]
+                            val userPositiveNegativeCounts = (
+                                    sentencesByUser[user] ?: error("")
+                                    ).countBy { it.negativeExample }
                             tr {
                                 td { +user }
                                 td { +"$totalUserSentences" }
+                                td {+"${userPositiveNegativeCounts[false] ?: 0}"}
+                                td {+"${userPositiveNegativeCounts[true] ?: 0}"}
                                 if (annotationDiffs == null) {
                                     td { +"n/a" }
                                 } else if (annotationDiffs.byUser[user] == null) {
@@ -553,17 +561,21 @@ class ExtractAnnotationStats {
                                     td { +"${annotationDiffs.byUser[user]}" }
                                 }
                                 if (annotationTimes != null && totalUserSentences != null) {
-                                    var totalUserSeconds = 0.toFloat()
-                                    for (projectInfo in annotationTimes[user].fields()) {
-                                        val project = projectInfo.key
-                                        // Skip ACE projects since they are quicker to finish than
-                                        // regular tasks
-                                        if (!project.contains("ACE-")) {
-                                            totalUserSeconds += annotationTimes[user][project]["seconds"]
-                                                    .toString().toFloat()
+                                    if (annotationTimes[user] != null) {
+                                        var totalUserSeconds = 0.toFloat()
+                                        for (projectInfo in annotationTimes[user].fields()) {
+                                            val project = projectInfo.key
+                                            // Skip ACE projects since they are quicker to finish than
+                                            // regular tasks
+                                            if (!project.contains("ACE-")) {
+                                                totalUserSeconds += annotationTimes[user][project]["seconds"]
+                                                        .toString().toFloat()
+                                            }
                                         }
+                                        td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
+                                    } else {
+                                        td { +"n/a" }
                                     }
-                                    td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
                                 } else {
                                     td { +"n/a" }
                                 }
@@ -575,12 +587,20 @@ class ExtractAnnotationStats {
                         tr {
                             th {+"Event type"}
                             th {+"Total sentences"}
+                            th {+"Positive"}
+                            th {+"Negative"}
                             th {+"New sentences"}
                         }
+                        val sentencesByEventType = allSentences.groupBy { it.eventType }
                         for (eventType in newAnnotationStats.byEventType.keys) {
+                            val eventTypePositiveNegativeCounts = (
+                                    sentencesByEventType[eventType] ?: error("")
+                                    ).countBy { it.negativeExample }
                             tr {
-                                td {+"$eventType" }
+                                td {+eventType}
                                 td {+"${newAnnotationStats.byEventType[eventType]}"}
+                                td {+"${eventTypePositiveNegativeCounts[false] ?: 0}"}
+                                td {+"${eventTypePositiveNegativeCounts[true] ?: 0}"}
                                 if (annotationDiffs == null) {
                                     td {+"n/a"}
                                 }
