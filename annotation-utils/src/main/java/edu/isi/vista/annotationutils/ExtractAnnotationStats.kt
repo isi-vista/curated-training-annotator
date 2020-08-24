@@ -561,17 +561,21 @@ class ExtractAnnotationStats {
                                     td { +"${annotationDiffs.byUser[user]}" }
                                 }
                                 if (annotationTimes != null && totalUserSentences != null) {
-                                    var totalUserSeconds = 0.toFloat()
-                                    for (projectInfo in annotationTimes[user].fields()) {
-                                        val project = projectInfo.key
-                                        // Skip ACE projects since they are quicker to finish than
-                                        // regular tasks
-                                        if (!project.contains("ACE-")) {
-                                            totalUserSeconds += annotationTimes[user][project]["seconds"]
-                                                    .toString().toFloat()
+                                    if (annotationTimes[user] != null) {
+                                        var totalUserSeconds = 0.toFloat()
+                                        for (projectInfo in annotationTimes[user].fields()) {
+                                            val project = projectInfo.key
+                                            // Skip ACE projects since they are quicker to finish than
+                                            // regular tasks
+                                            if (!project.contains("ACE-")) {
+                                                totalUserSeconds += annotationTimes[user][project]["seconds"]
+                                                        .toString().toFloat()
+                                            }
                                         }
+                                        td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
+                                    } else {
+                                        td { +"n/a" }
                                     }
-                                    td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
                                 } else {
                                     td { +"n/a" }
                                 }
