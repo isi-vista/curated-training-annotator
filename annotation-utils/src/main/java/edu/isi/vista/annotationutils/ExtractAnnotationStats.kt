@@ -563,6 +563,13 @@ class ExtractAnnotationStats {
                                 if (annotationTimes != null && totalUserSentences != null) {
                                     if (annotationTimes[user] != null) {
                                         var totalUserSeconds = 0.toFloat()
+                                        // Get non-ACE sentence count
+                                        var userStandardSentences = 0
+                                        for (sentence in allSentences) {
+                                            if (sentence.user == user && !sentence.eventType.contains("ACE-")) {
+                                                userStandardSentences += 1
+                                            }
+                                        }
                                         for (projectInfo in annotationTimes[user].fields()) {
                                             val project = projectInfo.key
                                             // Skip ACE projects since they are quicker to finish than
@@ -572,7 +579,7 @@ class ExtractAnnotationStats {
                                                         .toString().toFloat()
                                             }
                                         }
-                                        td { +getSentencesPerHour(totalUserSentences, totalUserSeconds) }
+                                        td { +getSentencesPerHour(userStandardSentences, totalUserSeconds) }
                                     } else {
                                         td { +"n/a" }
                                     }
