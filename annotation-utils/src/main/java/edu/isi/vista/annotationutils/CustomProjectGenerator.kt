@@ -11,19 +11,35 @@ import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Files
 
-/*
-Generate Inception projects for import for the cross-product of a list of users and the
-events of an ontology.
-
-The ElasticSearch index to search against is specified by the elasticSearchIndexName parameter.
-*/
+/**
+ * Generate Inception projects for import for the cross-product of a list of users and the
+ * events/relations of an ontology.
+ *
+ * Required parameters:
+ * --------------------
+ *  usersList - path to a txt file with a different username on each line
+ *  projectTemplate - path to one of the project templates;
+ *      example: "edu/isi/vista/annotationutils/covid19_project_template.json"
+ *  outputDirectory - where the new project files will be saved
+ *  projectsList - path to the JSON file listing the info for each project
+ *      (see docs/covid19_relations.json for an example)
+ *  elasticSearchIndexName - the ElasticSearch index to search against
+ *      (e.g. "gigaword" for English projects)
+ *
+ * Optional parameters:
+ * --------------------
+ *  projectPrefix - the string that attaches to the beginning of a project name
+ *      (e.g. "CORD19", "russian")
+ *
+ */
 
 fun main(argv: Array<String>)  {
     val params = Parameters.loadSerifStyle(File(argv[0]))
 
 
-    val users = params.getExistingFile("users_list").readLines().toSet()
-    val outputDirectory = params.getCreatableDirectory("output_dir")!!
+    val users = params.getExistingFile("usersList").readLines().toSet()
+    val projectTemplate = params.getString("projectTemplate")
+    val outputDirectory = params.getCreatableDirectory("outputDirectory")!!
     outputDirectory.mkdirs()
 
     // handles JSON (de)serialization
@@ -31,11 +47,11 @@ fun main(argv: Array<String>)  {
     val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
 
     // Load the relation types from a project list
-    val eventTypesToArguments = objectMapper.readTree(params.getExistingFile("projects_list")) as ObjectNode
+    val eventTypesToArguments = objectMapper.readTree(params.getExistingFile("projectsList")) as ObjectNode
     val eventTypes: MutableSet<String> = eventTypesToArguments.fieldNames().asSequence().toMutableSet()
 
     val jsonProjectTemplate = Resources.getResource(
-            "edu/isi/vista/annotationutils/covid19_project_template.json"
+            projectTemplate
     ).readText()
     val elasticSearchIndexName = params.getString("elasticSearchIndexName")
     val projectPrefix = params.getOptionalString("projectPrefix").orNull()
