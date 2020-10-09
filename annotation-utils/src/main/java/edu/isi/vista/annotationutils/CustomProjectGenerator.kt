@@ -24,12 +24,12 @@ import java.nio.file.Files
  *  projectsList - path to the JSON file listing the info for each project
  *      (see docs/covid19_relations.json for an example)
  *  elasticSearchIndexName - the ElasticSearch index to search against
- *      (e.g. "gigaword" for English projects)
+ *      (e.g. "gigaword" for English curated training projects)
  *
  * Optional parameters:
  * --------------------
  *  projectPrefix - the string that attaches to the beginning of a project name
- *      (e.g. "CORD19", "russian")
+ *      which typically indicates the project type (e.g. "CORD19", "russian")
  *
  */
 
