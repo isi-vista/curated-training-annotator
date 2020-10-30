@@ -45,8 +45,8 @@ const val EVENT_LOG = "event.log"
  *
  * Optional parameter:
  * <ul>
- *     <li> `usernamesToAbbreviations` is the JSON mapping from usernames to their respective
- *     abbreviations; use this if you want to change the annotator's name to something other than their
+ *     <li> `usernameJson` is the JSON mapping from usernames to their respective
+ *     alternate names; use this if you want to change the annotator's name to something other than their
  *     username when saving the project files, e.g. if the username contains info that should not be shared.
  *     </li>
  * </ul>
@@ -71,7 +71,7 @@ class ExportAnnotations {
             val inceptionPassword = params.getString("inceptionPassword")
 
             val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").toPath()
-            val usernamesToAbbreviations = params.getOptionalExistingFile("usernamesToAbbreviations").orNull()
+            val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
 
             if (!inceptionUrl.startsWith("http://")) {
                 throw RuntimeException("Inception URL must start with http:// but got $inceptionUrl")
@@ -82,11 +82,8 @@ class ExportAnnotations {
             val writer = ObjectMapper().writerWithDefaultPrettyPrinter()
 
             // load the usernames map if one is given
-            val usernameMap = if (usernamesToAbbreviations != null) {
-                mapper.readTree(usernamesToAbbreviations) as ObjectNode
-            } else {
-                null
-            }
+            val usernameMap = if (usernameJson != null)
+                mapper.readTree(usernameJson) as ObjectNode else null
 
             // extension function to avoid authentication boilerplate
             fun Request.authenticateToInception() =
@@ -123,23 +120,20 @@ class ExportAnnotations {
                 // These names will not change if usernamesToAbbreviations is not found
                 // or if a given username has no entry in the mapping.
                 val userSeparatorIndex = project.name.lastIndexOf("-")
-                val projectUsername = if (userSeparatorIndex >= 0) {
-                    project.name.substring(userSeparatorIndex + 1, project.name.length)
-                } else {
-                    null
-                }
-                var projectName = project.name
+                val projectUsername = if (userSeparatorIndex >= 0)
+                    project.name.substring(userSeparatorIndex + 1, project.name.length) else null
+                var finalProjectName = project.name
                 var outputUsername = projectUsername
                 if (usernameMap != null) {
                     outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
                     if (projectUsername != null && outputUsername != null) {
-                        projectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
+                        finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
                     }
                 }
 
                 // to reduce clutter, we only make a directory and export the
                 // log file for a project if it in fact has any annotation
-                val projectOutputDir = exportedAnnotationRoot.resolve(projectName)
+                val projectOutputDir = exportedAnnotationRoot.resolve(finalProjectName)
                 if (documents.isNotEmpty()) {
                     Files.createDirectories(projectOutputDir)
                     // Get export.zip, which contains the project's log file
