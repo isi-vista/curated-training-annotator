@@ -3,4 +3,4 @@ inceptionUsername: remote_admin
 # password is expected to be specified in an environmental variable
 inceptionPassword: %INCEPTION_PASSWORD%
 exportedAnnotationRoot: /Users/gabbard/projects/gaia/curated-training/exported-data
-
+usernamesToAbbreviations: /Users/gabbard/projects/gaia/curated-training/usernames_to_abbreviations.json

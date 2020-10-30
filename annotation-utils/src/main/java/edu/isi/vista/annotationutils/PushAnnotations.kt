@@ -30,11 +30,15 @@ import java.util.concurrent.TimeUnit
  *     <li> `inceptionPassword` is the password for the user above. Note that parameter files can
  *          interpolate from environmental variables </li>
  *     <li> `exportedAnnotationRoot` is the directory to download annotation to within
- *     `localWorkingCopyDirectory`. The hierarchy beneath it will look like
- *     "projectName/documentName/documentName-userName.json" </li>
+ *          `localWorkingCopyDirectory`. The hierarchy beneath it will look like
+ *          "projectName/documentName/documentName-userName.json" </li>
+ *     <li> `usernameJson`: (optional) the JSON mapping from usernames to their respective
+ *          alternate names; use this if you want to change the annotator's name
+ *          to something other than their username when saving the project files,
+ *          e.g. if the username contains info that should not be shared. </li>
  *     <li> `restoreJson`: "true" if you would like to restore the original document text to the annotation
- *     files; if your repository is public, please put "false"; if "true", you must also provide
- *     the following three parameter values:
+ *          files; if your repository is public, please put "false"; if "true", you must also provide
+ *          the following three parameter values:
  *       <ul>
  *         <li> `indexDirectory` is the location of the files produced by `indexFlatGigaword.java`
 (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
@@ -91,6 +95,9 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
+    if (params.isPresent("usernameJson")) {
+        exportAnnotationsParamsBuilder.set("usernameJson", params.getExistingFile("usernameJson").absolutePath)
+    }
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
     // Build params for restoring the original text

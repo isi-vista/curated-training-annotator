@@ -42,6 +42,14 @@ const val EVENT_LOG = "event.log"
  *     <li> {@code exportedAnnotationRoot} is the directory to download annotation to.  The
  *     hierarchy beneath it will look like "projectName/documentName/documentName-userName.json"</li>
  *  </ul>
+ *
+ * Optional parameter:
+ * <ul>
+ *     <li> `usernameJson` is the JSON mapping from usernames to their respective
+ *     alternate names; use this if you want to change the annotator's name to something other than their
+ *     username when saving the project files, e.g. if the username contains info that should not be shared.
+ *     </li>
+ * </ul>
  */
 
 data class Project(val id: Long, val name: String)
@@ -63,6 +71,7 @@ class ExportAnnotations {
             val inceptionPassword = params.getString("inceptionPassword")
 
             val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").toPath()
+            val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
 
             if (!inceptionUrl.startsWith("http://")) {
                 throw RuntimeException("Inception URL must start with http:// but got $inceptionUrl")
@@ -71,6 +80,10 @@ class ExportAnnotations {
 
             val mapper = ObjectMapper().registerKotlinModule()
             val writer = ObjectMapper().writerWithDefaultPrettyPrinter()
+
+            // load the usernames map if one is given
+            val usernameMap = if (usernameJson != null)
+                mapper.readTree(usernameJson) as ObjectNode else null
 
             // extension function to avoid authentication boilerplate
             fun Request.authenticateToInception() =
@@ -103,9 +116,24 @@ class ExportAnnotations {
                     continue
                 }
 
+                // Get the modified user/project names and use them to write the output file paths.
+                // These names will not change if usernamesToAbbreviations is not found
+                // or if a given username has no entry in the mapping.
+                val userSeparatorIndex = project.name.lastIndexOf("-")
+                val projectUsername = if (userSeparatorIndex >= 0)
+                    project.name.substring(userSeparatorIndex + 1, project.name.length) else null
+                var finalProjectName = project.name
+                var outputUsername = projectUsername
+                if (usernameMap != null) {
+                    outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
+                    if (projectUsername != null && outputUsername != null) {
+                        finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
+                    }
+                }
+
                 // to reduce clutter, we only make a directory and export the
                 // log file for a project if it in fact has any annotation
-                val projectOutputDir = exportedAnnotationRoot.resolve(project.name)
+                val projectOutputDir = exportedAnnotationRoot.resolve(finalProjectName)
                 if (documents.isNotEmpty()) {
                     Files.createDirectories(projectOutputDir)
                     // Get export.zip, which contains the project's log file
@@ -207,7 +235,7 @@ class ExportAnnotations {
                                 jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
                                 // Note that output file paths are unique because they include the project name, the document
                                 // id, and the annotator name. Each annotator can only annotate a document once in a project.
-                                val outFileName = projectOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
+                                val outFileName = projectOutputDir.resolve("${document.name}-$outputUsername.json")
                                 val redactedJsonString = writer.writeValueAsString(jsonTree)
                                 Files.write(outFileName, redactedJsonString.toByteArray())
                             } else {
