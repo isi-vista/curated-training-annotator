@@ -2,6 +2,7 @@ package edu.isi.vista.annotationutils
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import java.io.File
 import java.text.SimpleDateFormat
@@ -55,6 +56,7 @@ class ParseEventLogs {
             val originalLogsRoot = params.getOptionalExistingDirectory("originalLogsRoot").orNull()
             val indicatorSearchesRoot = params.getCreatableDirectory("indicatorSearchesRoot")
             val timeReportRoot = params.getCreatableDirectory("timeReportRoot")
+            val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
 
             // Get current date information
             val currentDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
@@ -65,6 +67,10 @@ class ParseEventLogs {
             // Make objects for reading, parsing, and writing json:
             val objectMapper = ObjectMapper()
             val prettyPrinter = objectMapper.writerWithDefaultPrettyPrinter()
+
+            val usernameMap = if (usernameJson != null)
+                objectMapper.readTree(usernameJson) as ObjectNode
+            else objectMapper.readTree("{}") as ObjectNode
 
             val allProjectInfo = mutableListOf<ProjectInfo>()
 
@@ -82,7 +88,7 @@ class ParseEventLogs {
                     // Read event.log
                     val jsonEvents = convertEventsToJson(eventLog)
                     // Get the total time the annotator spent on the project
-                    val parseResult = parseProjectEvents(jsonEvents, username)
+                    val parseResult = parseProjectEvents(jsonEvents, username, usernameMap)
                     projectInfo.indicators = parseResult.second
                     projectInfo.annotationTime = parseResult.first
                     allProjectInfo.add(projectInfo)
@@ -103,7 +109,7 @@ class ParseEventLogs {
                     val username = projectInfo.username
                     logger.info { "Including data from original log of $projectName" }
                     val jsonEvents = convertEventsToJson(eventLog)
-                    val parseResult = parseProjectEvents(jsonEvents, username)
+                    val parseResult = parseProjectEvents(jsonEvents, username, usernameMap)
                     projectInfo.indicators = parseResult.second
                     projectInfo.annotationTime = parseResult.first
                     allProjectInfo.add(projectInfo)
@@ -218,7 +224,7 @@ private fun convertEventsToJson(log: File): List<JsonNode> {
     return logEvents.map {eventObjectMapper.readTree(it)}
 }
 
-private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pair<Long, Set<String>> {
+private fun parseProjectEvents(logEvents: List<JsonNode>, username: String, usernameMap: JsonNode): Pair<Long, Set<String>> {
     // Get indicators searched and times (in seconds) spent in each document
     // by running through each Inception event recorded in the project's event.log
     var currentDocument: String? = null  // some events have no document field
@@ -229,7 +235,9 @@ private fun parseProjectEvents(logEvents: List<JsonNode>, username: String): Pai
     for (event in logEvents) {
         val inceptionEventType = event.get("event").toString().removeSurrounding("\"")
         val documentName = event.get("document_name")?.toString()?.removeSurrounding("\"")
-        val user = event.get("user")?.toString()?.removeSurrounding("\"")
+        val logUser = event.get("user")?.toString()?.removeSurrounding("\"")
+        val mappedUser = usernameMap.get(logUser)?.toString()?.removeSurrounding("\"")
+        val user = mappedUser ?: logUser
         // If the event is an indicator search, record the search query.
         // Search query events aren't associated with any particular document.
         if (inceptionEventType == "ExternalSearchQueryEvent" && user == username) {
