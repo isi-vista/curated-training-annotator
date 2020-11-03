@@ -88,6 +88,7 @@ fun main(argv: Array<String>) {
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
     val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").absolutePath
+    val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
 
     // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
@@ -96,7 +97,7 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     if (params.isPresent("usernameJson")) {
-        exportAnnotationsParamsBuilder.set("usernameJson", params.getExistingFile("usernameJson").absolutePath)
+        exportAnnotationsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
     }
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
@@ -128,6 +129,7 @@ fun main(argv: Array<String>) {
     extractAnnotationStatsParamsBuilder.set(
             "timeReportRoot", params.getCreatableDirectory("timeReportRoot").absolutePath
     )
+    extractAnnotationStatsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
     extractAnnotationStatsParamsBuilder.set(
             "statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath
     )

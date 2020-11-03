@@ -83,7 +83,7 @@ class ExportAnnotations {
 
             // load the usernames map if one is given
             val usernameMap = if (usernameJson != null)
-                mapper.readTree(usernameJson) as ObjectNode else null
+                mapper.readTree(usernameJson) as ObjectNode else mapper.readTree("{}") as ObjectNode
 
             // extension function to avoid authentication boilerplate
             fun Request.authenticateToInception() =
@@ -123,12 +123,9 @@ class ExportAnnotations {
                 val projectUsername = if (userSeparatorIndex >= 0)
                     project.name.substring(userSeparatorIndex + 1, project.name.length) else null
                 var finalProjectName = project.name
-                var outputUsername = projectUsername
-                if (usernameMap != null) {
-                    outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
-                    if (projectUsername != null && outputUsername != null) {
-                        finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
-                    }
+                val outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
+                if (projectUsername != null && outputUsername != null) {
+                    finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
                 }
 
                 // to reduce clutter, we only make a directory and export the
@@ -235,7 +232,15 @@ class ExportAnnotations {
                                 jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
                                 // Note that output file paths are unique because they include the project name, the document
                                 // id, and the annotator name. Each annotator can only annotate a document once in a project.
-                                val outFileName = projectOutputDir.resolve("${document.name}-$outputUsername.json")
+                                val documentUsername = usernameMap.get(annotationRecord.user)
+                                        ?.toString()?.removeSurrounding("\"")
+                                // We don't necessarily use `outputUsername` because on rare occasions
+                                // documents in a project have a different annotator (usually an admin user).
+                                val outFileName = if (documentUsername != null) {
+                                    projectOutputDir.resolve("${document.name}-$documentUsername.json")
+                                } else {
+                                    projectOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
+                                }
                                 val redactedJsonString = writer.writeValueAsString(jsonTree)
                                 Files.write(outFileName, redactedJsonString.toByteArray())
                             } else {
