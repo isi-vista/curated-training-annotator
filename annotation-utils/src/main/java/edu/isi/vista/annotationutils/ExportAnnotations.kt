@@ -226,23 +226,27 @@ class ExportAnnotations {
 
                             val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                             if (jsonBytes != null) {
-                                var jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
-                                // Our LDC license does not permit us to distribute the full document text.
-                                // Users may retrieve the text from the original LDC source document releases.
-                                jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
                                 // Note that output file paths are unique because they include the project name, the document
                                 // id, and the annotator name. Each annotator can only annotate a document once in a project.
                                 val documentUsername = usernameMap.get(annotationRecord.user)
                                         ?.toString()?.removeSurrounding("\"")
-                                // We don't necessarily use `outputUsername` because on rare occasions
-                                // documents in a project have a different annotator (usually an admin user).
-                                val outFileName = if (documentUsername != null) {
-                                    projectOutputDir.resolve("${document.name}-$documentUsername.json")
+                                // Skip documents where the annotator (usually an admin user)
+                                // is not the project's annotator.
+                                if (documentUsername == outputUsername) {
+                                    val outFileName = projectOutputDir.resolve(
+                                            "${document.name}-$documentUsername.json"
+                                    )
+                                    val jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
+                                    // Our LDC license does not permit us to distribute the full document text.
+                                    // Users may retrieve the text from the original LDC source document releases.
+                                    jsonTree.replaceFieldEverywhere(
+                                            "sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__"
+                                    )
+                                    val redactedJsonString = writer.writeValueAsString(jsonTree)
+                                    Files.write(outFileName, redactedJsonString.toByteArray())
                                 } else {
-                                    projectOutputDir.resolve("${document.name}-${annotationRecord.user}.json")
+                                    logger.info { "Skipping document from $documentUsername because it is not part of this project" }
                                 }
-                                val redactedJsonString = writer.writeValueAsString(jsonTree)
-                                Files.write(outFileName, redactedJsonString.toByteArray())
                             } else {
                                 throw RuntimeException("Corrupt zip file returned")
                             }
