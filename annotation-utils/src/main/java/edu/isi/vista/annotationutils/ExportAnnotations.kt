@@ -117,8 +117,11 @@ class ExportAnnotations {
                 }
 
                 // Get the modified user/project names and use them to write the output file paths.
-                // These names will not change if usernamesToAbbreviations is not found
+                // These names will not change if usernameJson is not found
                 // or if a given username has no entry in the mapping.
+
+                // The value of project.name should have format
+                // optionalPrefix-Event.Type-user_name
                 val userSeparatorIndex = project.name.lastIndexOf("-")
                 val projectUsername = if (userSeparatorIndex >= 0)
                     project.name.substring(userSeparatorIndex + 1, project.name.length) else null
