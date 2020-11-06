@@ -2,3 +2,4 @@ exportedAnnotationRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining
 originalLogsRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/original-logs
 indicatorSearchesRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/indicator-searches
 timeReportRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/time-reports
+usernameJson: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/usernames_to_abbreviations.json

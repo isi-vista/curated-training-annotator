@@ -88,6 +88,8 @@ fun main(argv: Array<String>) {
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
 
     val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").absolutePath
+    val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
+    val hasUsernameJson = usernameJson != null
 
     // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
@@ -96,7 +98,7 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
     if (params.isPresent("usernameJson")) {
-        exportAnnotationsParamsBuilder.set("usernameJson", params.getExistingFile("usernameJson").absolutePath)
+        exportAnnotationsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
     }
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
@@ -117,7 +119,7 @@ fun main(argv: Array<String>) {
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
-    if (params.isPresent("originalLogsRoot")) {
+    if (hasUsernameJson) {
         extractAnnotationStatsParamsBuilder.set(
                 "originalLogsRoot", params.getExistingDirectory("originalLogsRoot").absolutePath
         )
@@ -128,6 +130,9 @@ fun main(argv: Array<String>) {
     extractAnnotationStatsParamsBuilder.set(
             "timeReportRoot", params.getCreatableDirectory("timeReportRoot").absolutePath
     )
+    if (hasUsernameJson) {
+        extractAnnotationStatsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
+    }
     extractAnnotationStatsParamsBuilder.set(
             "statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath
     )

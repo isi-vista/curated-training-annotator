@@ -83,7 +83,7 @@ class ExportAnnotations {
 
             // load the usernames map if one is given
             val usernameMap = if (usernameJson != null)
-                mapper.readTree(usernameJson) as ObjectNode else null
+                mapper.readTree(usernameJson) as ObjectNode else mapper.readTree("{}") as ObjectNode
 
             // extension function to avoid authentication boilerplate
             fun Request.authenticateToInception() =
@@ -117,18 +117,18 @@ class ExportAnnotations {
                 }
 
                 // Get the modified user/project names and use them to write the output file paths.
-                // These names will not change if usernamesToAbbreviations is not found
+                // These names will not change if usernameJson is not found
                 // or if a given username has no entry in the mapping.
+
+                // The value of project.name should have format
+                // optionalPrefix-Event.Type-user_name
                 val userSeparatorIndex = project.name.lastIndexOf("-")
                 val projectUsername = if (userSeparatorIndex >= 0)
                     project.name.substring(userSeparatorIndex + 1, project.name.length) else null
                 var finalProjectName = project.name
-                var outputUsername = projectUsername
-                if (usernameMap != null) {
-                    outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
-                    if (projectUsername != null && outputUsername != null) {
-                        finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
-                    }
+                val outputUsername = usernameMap.get(projectUsername)?.toString()?.removeSurrounding("\"")
+                if (projectUsername != null && outputUsername != null) {
+                    finalProjectName = project.name.substring(0, userSeparatorIndex + 1) + outputUsername
                 }
 
                 // to reduce clutter, we only make a directory and export the
@@ -229,15 +229,28 @@ class ExportAnnotations {
 
                             val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                             if (jsonBytes != null) {
-                                var jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
-                                // Our LDC license does not permit us to distribute the full document text.
-                                // Users may retrieve the text from the original LDC source document releases.
-                                jsonTree.replaceFieldEverywhere("sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__")
-                                // Note that output file paths are unique because they include the project name, the document
-                                // id, and the annotator name. Each annotator can only annotate a document once in a project.
-                                val outFileName = projectOutputDir.resolve("${document.name}-$outputUsername.json")
-                                val redactedJsonString = writer.writeValueAsString(jsonTree)
-                                Files.write(outFileName, redactedJsonString.toByteArray())
+                                val documentUsername = usernameMap.get(annotationRecord.user)
+                                        ?.toString()?.removeSurrounding("\"")
+                                // Skip documents where the annotator (usually an admin user)
+                                // is not the project's annotator.
+                                if (documentUsername == outputUsername) {
+                                    // Note that output file paths are unique because they include the project name,
+                                    // the document id, and the annotator name. Each annotator can only annotate
+                                    // a document once in a project.
+                                    val outFileName = projectOutputDir.resolve(
+                                            "${document.name}-$documentUsername.json"
+                                    )
+                                    val jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
+                                    // Our LDC license does not permit us to distribute the full document text.
+                                    // Users may retrieve the text from the original LDC source document releases.
+                                    jsonTree.replaceFieldEverywhere(
+                                            "sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__"
+                                    )
+                                    val redactedJsonString = writer.writeValueAsString(jsonTree)
+                                    Files.write(outFileName, redactedJsonString.toByteArray())
+                                } else {
+                                    logger.info { "Skipping document from $documentUsername because it is not part of this project" }
+                                }
                             } else {
                                 throw RuntimeException("Corrupt zip file returned")
                             }
