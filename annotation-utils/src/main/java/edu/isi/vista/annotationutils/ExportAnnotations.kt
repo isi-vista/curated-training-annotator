@@ -226,13 +226,14 @@ class ExportAnnotations {
 
                             val jsonBytes = it.getInputStream("$zipEntryName.json")?.readBytes()
                             if (jsonBytes != null) {
-                                // Note that output file paths are unique because they include the project name, the document
-                                // id, and the annotator name. Each annotator can only annotate a document once in a project.
                                 val documentUsername = usernameMap.get(annotationRecord.user)
                                         ?.toString()?.removeSurrounding("\"")
                                 // Skip documents where the annotator (usually an admin user)
                                 // is not the project's annotator.
                                 if (documentUsername == outputUsername) {
+                                    // Note that output file paths are unique because they include the project name,
+                                    // the document id, and the annotator name. Each annotator can only annotate
+                                    // a document once in a project.
                                     val outFileName = projectOutputDir.resolve(
                                             "${document.name}-$documentUsername.json"
                                     )
