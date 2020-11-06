@@ -89,6 +89,7 @@ fun main(argv: Array<String>) {
 
     val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").absolutePath
     val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
+    val hasUsernameJson = usernameJson != null
 
     // Build params for exporting the annotations
     val exportAnnotationsParamsBuilder = Parameters.builder()
@@ -118,7 +119,7 @@ fun main(argv: Array<String>) {
     // Build params for extracting the annotation statistics
     val extractAnnotationStatsParamsBuilder = Parameters.builder()
     extractAnnotationStatsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
-    if (params.isPresent("originalLogsRoot")) {
+    if (hasUsernameJson) {
         extractAnnotationStatsParamsBuilder.set(
                 "originalLogsRoot", params.getExistingDirectory("originalLogsRoot").absolutePath
         )
@@ -129,7 +130,9 @@ fun main(argv: Array<String>) {
     extractAnnotationStatsParamsBuilder.set(
             "timeReportRoot", params.getCreatableDirectory("timeReportRoot").absolutePath
     )
-    extractAnnotationStatsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
+    if (hasUsernameJson) {
+        extractAnnotationStatsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
+    }
     extractAnnotationStatsParamsBuilder.set(
             "statisticsDirectory", params.getCreatableDirectory("statisticsDirectory").absolutePath
     )

@@ -133,7 +133,9 @@ class ParseEventLogs {
                 val projectsToIndicatorListsMap = mutableMapOf<String, MutableSet<String>>()
                         .withDefault { mutableSetOf() }
                 for (pair in projectsToIndicatorLists) {
-                    projectsToIndicatorListsMap.getValue(pair.first).union(pair.second)
+                    val indicatorListsUnion: MutableSet<String> = projectsToIndicatorListsMap
+                            .getValue(pair.first).union(pair.second).toMutableSet()
+                    projectsToIndicatorListsMap[pair.first] = indicatorListsUnion
                 }
                 val projectsToIndicatorListsSortedMap = projectsToIndicatorListsMap.toMap().toSortedMap()
                 val projectsToTimes = userProjects.map {
