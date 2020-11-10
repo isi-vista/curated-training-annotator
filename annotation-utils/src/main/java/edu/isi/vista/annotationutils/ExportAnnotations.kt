@@ -234,22 +234,28 @@ class ExportAnnotations {
                                 // Skip documents where the annotator (usually an admin user)
                                 // is not the project's annotator.
                                 if (documentUsername == outputUsername) {
-                                    // Note that output file paths are unique because they include the project name,
-                                    // the document id, and the annotator name. Each annotator can only annotate
-                                    // a document once in a project.
-                                    val outFileName = projectOutputDir.resolve(
-                                            "${document.name}-$documentUsername.json"
-                                    )
                                     val jsonTree = ObjectMapper().readTree(jsonBytes) as ObjectNode
-                                    // Our LDC license does not permit us to distribute the full document text.
-                                    // Users may retrieve the text from the original LDC source document releases.
-                                    jsonTree.replaceFieldEverywhere(
-                                            "sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__"
-                                    )
-                                    val redactedJsonString = writer.writeValueAsString(jsonTree)
-                                    Files.write(outFileName, redactedJsonString.toByteArray())
+                                    // If there is no CTEventSpan field, that indicates there were no marked spans
+                                    // in the document and we can skip them.
+                                    if (hasCTEventSpan(jsonTree)) {
+                                        // Our LDC license does not permit us to distribute the full document text.
+                                        // Users may retrieve the text from the original LDC source document releases.
+                                        jsonTree.replaceFieldEverywhere(
+                                                "sofaString", "__DOCUMENT_TEXT_REDACTED_FOR_IP_REASONS__"
+                                        )
+                                        val redactedJsonString = writer.writeValueAsString(jsonTree)
+                                        // Note that output file paths are unique because they include the project name,
+                                        // the document id, and the annotator name. Each annotator can only annotate
+                                        // a document once in a project.
+                                        val outFileName = projectOutputDir.resolve(
+                                                "${document.name}-$documentUsername.json"
+                                        )
+                                        Files.write(outFileName, redactedJsonString.toByteArray())
+                                    } else {
+                                        logger.info { "Skipping ${document.name} because it has no annotations"}
+                                    }
                                 } else {
-                                    logger.info { "Skipping document from $documentUsername because it is not part of this project" }
+                                    logger.info { "Skipping document from ${annotationRecord.user} because it is not part of this project" }
                                 }
                             } else {
                                 throw RuntimeException("Corrupt zip file returned")
@@ -324,4 +330,18 @@ fun Request.retryOnResponseFailure(maxTries: Int = 3, timeoutInSeconds: Long = 5
     }
     logger.warn { "HTTP request has failed $maxTries times. Aborting." }
     return null
+}
+
+/**
+ * Safely check if the exported JSON has the field "CTEventSpan"
+ */
+fun hasCTEventSpan(jsonObjectNode: ObjectNode): Boolean {
+    if (jsonObjectNode.has("_views")) {
+        if (jsonObjectNode["_views"].has("_InitialView")) {
+            if (jsonObjectNode["_views"]["_InitialView"].has("CTEventSpan")) {
+                return true
+            }
+        }
+    }
+    return false
 }
