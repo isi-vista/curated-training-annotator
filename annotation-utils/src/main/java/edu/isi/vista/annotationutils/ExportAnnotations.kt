@@ -95,12 +95,18 @@ class ExportAnnotations {
                         .resultObjectThrowingExceptionOnFailure<AeroResult<Project>>(mapper)
                         .body
             }
+            val bannedProjectStrings: List<String> = listOf("copy_of", "-test", "-sandbox", "-admin")
+
             if (projects == null) {
                 throw java.lang.RuntimeException("Could not fetch projects from $inceptionUrl. Aborting")
             }
             logger.info { "Projects on server ${projects.map { it.name }}" }
 
             for (project in projects) {
+                if (bannedProjectStrings.any { project.name.contains(it) }) {
+                    logger.info { "Skipping project $project because we are not interested in this data." }
+                    continue
+                }
                 logger.info { "Processing project $project" }
                 val getDocsUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/documents"
                 val getExportUrl = "$inceptionUrl/api/aero/v1/projects/${project.id}/export.zip"
