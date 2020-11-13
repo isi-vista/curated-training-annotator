@@ -13,9 +13,13 @@ import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import edu.isi.nlp.parameters.serifstyle.SerifStyleParameterFileLoader
 import mu.KLogging
+import net.java.truevfs.comp.zip.ZipEntry
 import net.java.truevfs.comp.zip.ZipFile
+import net.java.truevfs.comp.zip.ZipOutputStream
+import java.io.BufferedOutputStream
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 val logger = KLogging().logger
@@ -43,12 +47,16 @@ const val EVENT_LOG = "event.log"
  *     hierarchy beneath it will look like "projectName/documentName/documentName-userName.json"</li>
  *  </ul>
  *
- * Optional parameter:
+ * Optional parameters:
  * <ul>
  *     <li> `usernameJson` is the JSON mapping from usernames to their respective
  *     alternate names; use this if you want to change the annotator's name to something other than their
  *     username when saving the project files, e.g. if the username contains info that should not be shared.
  *     </li>
+ *     <li> `compressOutput` determines whether the project directories will be copied to zip archives.
+ *     The default is false. </li>
+ *     <li> `zipExportRoot` is the directory where the zipped output will be saved.
+ *     If no value is given, the output will not have a compressed version. </li>
  * </ul>
  */
 
@@ -70,8 +78,11 @@ class ExportAnnotations {
             val inceptionUserName = params.getString("inceptionUsername")
             val inceptionPassword = params.getString("inceptionPassword")
 
-            val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot").toPath()
+            val exportedAnnotationRoot = params.getCreatableDirectory("exportedAnnotationRoot")
+            val exportedAnnotationRootPath = exportedAnnotationRoot.toPath()
             val usernameJson = params.getOptionalExistingFile("usernameJson").orNull()
+            val compressOutput = params.getOptionalBoolean("compressOutput").or(false)
+            val zipExportRoot = params.getOptionalCreatableDirectory("zipExportRoot").orNull()
 
             if (!inceptionUrl.startsWith("http://")) {
                 throw RuntimeException("Inception URL must start with http:// but got $inceptionUrl")
@@ -139,7 +150,7 @@ class ExportAnnotations {
 
                 // to reduce clutter, we only make a directory and export the
                 // log file for a project if it in fact has any annotation
-                val projectOutputDir = exportedAnnotationRoot.resolve(finalProjectName)
+                val projectOutputDir = exportedAnnotationRootPath.resolve(finalProjectName)
                 if (documents.isNotEmpty()) {
                     Files.createDirectories(projectOutputDir)
                     // Get export.zip, which contains the project's log file
@@ -270,6 +281,15 @@ class ExportAnnotations {
                     }
                 }
             }
+            // If `compressOutput` is true, create a zip archive for each project
+            // directory and save it to the designated folder.
+            if (compressOutput && zipExportRoot != null) {
+                logger.info { "Creating zip archives..." }
+                exportedAnnotationRoot.walk().filter { it.isDirectory && it != exportedAnnotationRoot }
+                        .forEach { projectDir ->
+                    zipProject(projectDir, zipExportRoot.toPath())
+                }
+            }
             logger.info { "all done!" }
         }
     }
@@ -350,4 +370,23 @@ fun hasCTEventSpan(jsonObjectNode: ObjectNode): Boolean {
         }
     }
     return false
+}
+
+/**
+ * Create zip archives for each project
+ */
+fun zipProject(exportedProjectDir: File, zipDir: Path) {
+    val projectName = exportedProjectDir.name
+    val zipOutputPath = zipDir.resolve("$projectName.zip")
+    logger.info { "Compressing project to $zipOutputPath" }
+    val zipOutputStream = ZipOutputStream(
+            BufferedOutputStream(Files.newOutputStream(zipOutputPath))
+    )
+    exportedProjectDir.walk().filter { it.isFile }.forEach { projectFile ->
+        val projectFilePath = projectFile.toPath()
+        zipOutputStream.putNextEntry(ZipEntry("$projectName/${projectFile.name}"))
+        Files.copy(projectFilePath, zipOutputStream)
+        zipOutputStream.closeEntry()
+    }
+    zipOutputStream.close()
 }

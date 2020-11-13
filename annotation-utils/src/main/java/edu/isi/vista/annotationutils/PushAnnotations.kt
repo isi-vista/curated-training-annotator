@@ -36,6 +36,11 @@ import java.util.concurrent.TimeUnit
  *          alternate names; use this if you want to change the annotator's name
  *          to something other than their username when saving the project files,
  *          e.g. if the username contains info that should not be shared. </li>
+ *     <li> `compressOutput` (optional) determines whether the project directories
+ *          will be copied to zip archives. The default is false. </li>
+ *     <li> `zipExportRoot` (optional) is the directory where the zipped output will be saved.
+ *          If no value is given, the output will not have a compressed version. </li>
+ *
  *     <li> `restoreJson`: "true" if you would like to restore the original document text to the annotation
  *          files; if your repository is public, please put "false"; if "true", you must also provide
  *          the following three parameter values:
@@ -54,6 +59,7 @@ import java.util.concurrent.TimeUnit
  *         <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
  *       </ul>
  *     </li>
+ *
  *     <li> `statisticsDirectory` is the directory where the annotation statistics reports
  *     will be saved</li>
  *     <li> `repoToPushTo`: the ssh url of the repository to which the annotation data
@@ -97,8 +103,18 @@ fun main(argv: Array<String>) {
     exportAnnotationsParamsBuilder.set("inceptionUsername", params.getString("inceptionUsername"))
     exportAnnotationsParamsBuilder.set("inceptionPassword", params.getString("inceptionPassword"))
     exportAnnotationsParamsBuilder.set("exportedAnnotationRoot", exportedAnnotationRoot)
-    if (params.isPresent("usernameJson")) {
+    if (hasUsernameJson) {
         exportAnnotationsParamsBuilder.set("usernameJson", usernameJson!!.absolutePath)
+    }
+    if (params.isPresent("compressOutput")) {
+        exportAnnotationsParamsBuilder.set(
+                "compressOutput", params.getBoolean("compressOutput").toString()
+        )
+    }
+    if (params.isPresent("zipExportRoot")) {
+        exportAnnotationsParamsBuilder.set(
+                "zipExportRoot", params.getCreatableDirectory("zipExportRoot").absolutePath
+        )
     }
     val exportAnnotationsParams = exportAnnotationsParamsBuilder.build()
 
