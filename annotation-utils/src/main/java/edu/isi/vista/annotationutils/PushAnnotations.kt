@@ -45,18 +45,25 @@ import java.util.concurrent.TimeUnit
  *          files; if your repository is public, please put "false"; if "true", you must also provide
  *          the following three parameter values:
  *       <ul>
+ *
  *         <li> `indexDirectory` is the location of the files produced by `indexFlatGigaword.java`
 (https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java) </li>
  *         <li> `aceEngDataDirectory` is the location of the ACE English corpus files
  *         (ace_2005_td_v7_LDC2006T06/data/English) </li>
  *         <li> `gigawordDataDirectory` is the location of the gigaword text files </li>
  *         <li> `restoredJsonDirectory` is where the new json files will go </li>
+ *
  *         <li> `annotatedFlexNLPOutputDir` is the directory where the annotated FlexNLP documents will be saved</li>
+ *         <li> `compressFlexNLPOutput` (optional) determines whether the FlexNLP project directories
+ *         will be copied to zip archives. The default is False. </li>
+ *         <li> `zipFlexNLPOutputDir` (optional) is the directory where the zipped FlexNLP output
+ *         will be saved. If no value is given, the output will not have a compressed version. </li>
  *         <li> `ingesterParametersDirectory` is where the parameters file for `curated_training_ingester.py` will
  *          be saved</li>
  *         <li> `pythonPath` is the path to the python interpreter that will be used to run
  *         `curated_training_ingester.py`</li>
  *         <li> `curatedTrainingIngesterPath` is the path to `curated_training_ingester.py`</li>
+ *
  *       </ul>
  *     </li>
  *
@@ -185,6 +192,18 @@ fun main(argv: Array<String>) {
                     "annotated_flexnlp_output_dir",
                     params.getCreatableDirectory("annotatedFlexNLPOutputDir").absolutePath
             )
+            if (params.isPresent("compressFlexNLPOutput")) {
+                curatedTrainingIngesterParamsBuilder.set(
+                        "compress_output",
+                        params.getBoolean("compressFlexNLPOutput").toString()
+                )
+            }
+            if (params.isPresent("zipFlexNLPOutputDir")) {
+                curatedTrainingIngesterParamsBuilder.set(
+                        "zip_dir",
+                        params.getCreatableDirectory("zipFlexNLPOutputDir").absolutePath
+                )
+            }
             val curatedTrainingIngesterParams = curatedTrainingIngesterParamsBuilder.build()
             val ingesterParametersDir = params.getCreatableDirectory("ingesterParametersDirectory")
                     .toPath()
