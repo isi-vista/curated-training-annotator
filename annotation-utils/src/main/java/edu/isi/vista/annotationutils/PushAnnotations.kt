@@ -131,6 +131,7 @@ fun main(argv: Array<String>) {
         Parameters.builder()
                 .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
                 .set("aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath)
+                .set("cord19DataDirectory", params.getExistingDirectory("cord19DataDirectory").absolutePath)
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
                 .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
