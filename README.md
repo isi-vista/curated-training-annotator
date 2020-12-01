@@ -1,8 +1,8 @@
 # curated-training-annotator
 
-Tools for the curated training annotation process:
+Tools for the curated training annotation process
 
-The easiest way to run each individual step is through IntelliJ.
+Currently, the easiest way to run each individual step is through IntelliJ.
 Each of them take a single parameter file as input. Sample files for each 
 script can be found in `sample_params/`.
 
@@ -20,12 +20,9 @@ mvn clean install
 
 # Generating Inception Projects
 `ProjectGenerator.kt` will produce Inception annotation projects for the
-cross-product of a set of users and the event types of (by default) an AIDA
+cross-product of a set of users and the event types of an AIDA
 ontology. Each generated project will have the naming convention
 `optionalProjectPrefix-Event.Type-username`
-
-You may create projects using a custom ontology by using a JSON file like
-`docs/aida_changes_0514.json`.
 
 # Exporting Annotations
 Use `ExportAnnotations.kt` to pull all projects from an `INCEpTION` server.
@@ -37,8 +34,8 @@ text into the exported JSON files using `RestoreJson.kt`.
 Before running this script on projects that use the Gigaword 5 corpus,
 you must have the indices, which can be generated from
 https://github.com/isi-vista/nlp-util/blob/master/nlp-core-open/src/main/java/edu/isi/nlp/corpora/gigaword/IndexFlatGigaword.java .
-You must unzip all individual `.gz` files in the corpus before running
-IndexFlatGigaword.
+You will need to unzip all individual `.gz` files in the corpus before
+running `IndexFlatGigaword`.
 
 Use the directory path where you saved the indices as the value of
 `indexDirectory`.
@@ -60,11 +57,13 @@ file containing all the parameters needed to run each of the following
 steps.
 
 1. Set up existing local copy of repository
-2. ExportAnnotations
-3. ExtractAnnotationStats
+2. `ExportAnnotations` -- pull annotation data from Inception server
+3. `ExtractAnnotationStats` -- generate annotation statistics from exported data
 4. If you want to restore the corpus text (`restoreJson: true`):
-    1. RestoreJson
-    2. [curated_training_ingester](https://github.com/isi-vista/gaia-event-extraction/blob/master/gaia_event_extraction/ingesters/curated_training_ingester.py) (from `gaia-event-extraction`; see below)
+    1. `RestoreJson` -- add original corpus text to exported documents
+    2. [curated_training_ingester](https://github.com/isi-vista/gaia-event-extraction/blob/master/gaia_event_extraction/ingesters/curated_training_ingester.py)
+    (from `gaia-event-extraction`; see below) -- convert the annotation
+    JSON to FlexNLP documents
 5. Push changes to remote repository
 
 For the repository setup to succeed, the working directory will need
@@ -80,7 +79,7 @@ access to any of these, let one of the admins know.
 To run PushAnnotations from the command line, `cd` to the
 `curated-training-annotator` directory and enter
 ```
-sh annotation-utils/target/appassembler/bin/pushAnnotations "path/to/parameter/file"
+annotation-utils/target/appassembler/bin/pushAnnotations "path/to/parameter/file"
 ```
 
 ## Note on JVM code
