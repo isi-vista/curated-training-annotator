@@ -1,0 +1,8 @@
+INCLUDE generate_projects.common.lee.params
+
+usersList: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotator/docs/2020-05-users.txt
+projectTemplate: edu/isi/vista/annotationutils/covid19_project_template.json
+outputDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/generated_projects
+projectsList: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotator/docs/covid19_relations.json
+elasticSearchIndexName: covid19
+projectPrefix: CORD19

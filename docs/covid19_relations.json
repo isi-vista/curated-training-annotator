@@ -1,0 +1,13 @@
+{
+	"AsymptomaticCases": ["Pathogen", "Disease", "Target", "Amount", "Contagiousness"],
+	"CrossTransmission": ["Pathogen", "Disease", "Source", "Target", "Method"],
+	"ImmunityAgainst": ["Pathogen", "Disease", "Target", "Cause"],
+	"InfectionPreventionStrategy": ["Pathogen", "Disease", "Strategy"],
+	"IncubationPeriod": ["Disease", "Period", "Target"],
+	"PersistsOnSurface": ["Agent", "Surface", "Period", "Condition"],
+	"ResistantToTreatment": ["Pathogen", "Treatment", "Method"],
+	"SymptomOf": ["Agent", "Disease", "Target", "Symptom", "Type"],
+	"TransmissionMedium": ["Pathogen", "Medium"],
+	"TransmissionSeasonality": ["Agent", "Disease", "Period", "Place"],
+	"TreatmentAgainst": ["Agent", "Disease", "Treatment"]
+}
