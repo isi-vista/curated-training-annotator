@@ -128,14 +128,32 @@ fun main(argv: Array<String>) {
     // Build params for restoring the original text
     val restoreJson = params.getOptionalBoolean("restoreJson").or(false)
     val restoreJsonParams = if (restoreJson) {
-        Parameters.builder()
+        val restoreJsonParamsBuilder = Parameters.builder()
                 .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
-                .set("aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath)
-                .set("cord19DataDirectory", params.getExistingDirectory("cord19DataDirectory").absolutePath)
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
                 .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
-                .build()
+        if (params.getOptionalBoolean("restoreAce").or(params.isPresent("aceEngDataDirectory"))) {
+            restoreJsonParamsBuilder.set(
+                    "aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath
+            )
+        }
+        if (params.getOptionalBoolean("restoreCord19").or(params.isPresent("cord19DataDirectory"))) {
+            restoreJsonParamsBuilder.set(
+                    "cord19DataDirectory", params.getExistingDirectory("cord19DataDirectory").absolutePath
+            )
+        }
+        if (params.getOptionalBoolean("restoreRussian").or(params.isPresent("russianDataDirectory"))) {
+            restoreJsonParamsBuilder.set(
+                    "russianDataDirectory", params.getExistingDirectory("russianDataDirectory").absolutePath
+            )
+        }
+        if (params.getOptionalBoolean("restoreSpanish").or(params.isPresent("spanishDataDirectory"))) {
+            restoreJsonParamsBuilder.set(
+                    "spanishDataDirectory", params.getExistingDirectory("spanishDataDirectory").absolutePath
+            ).set("spanishIndexDirectory", params.getExistingDirectory("spanishIndexDirectory").absolutePath)
+        }
+        restoreJsonParamsBuilder.build()
     } else {
         null
     }
