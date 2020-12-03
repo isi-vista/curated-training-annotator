@@ -255,10 +255,16 @@ private fun getRussianDocID(filename: String): String? {
 
     val regex = Regex(pattern = """(RUS_[A-Z]{2}_[A-Z0-9]{6}_[A-Z0-9]{8}_[A-Z0-9]{9})-.*""")
     if (regex.containsMatchIn(filename)) {
-        val matchResult = regex.find(filename)
-        //Returns only the doc id. In this case: CNNHL_ENG_20030304_142751.10
-        val matchGroups = matchResult!!.groups
-        // match groups = ("<docid>-john_bob.json", "<docid>")
+        // The section of the above pattern in parentheses is the "capturing group";
+        // in this case it is the pattern of the document ID,
+        // since this is the information we want to return.
+        // If the pattern is found in the filename, it will fetch
+        // the filename and the capturing group
+        // and assign them as `groups` of matchResult.
+        val matchResult: MatchResult? = regex.find(filename)
+        val matchGroups: MatchGroupCollection = matchResult!!.groups
+        // match groups = ("RUS_DF_579382_08212053_P861983UGN-john_bob.json", "RUS_DF_579382_08212053_P861983UGN")
+        // The capturing group match is the second item.
         return matchGroups[1]!!.value
     }
     return null
