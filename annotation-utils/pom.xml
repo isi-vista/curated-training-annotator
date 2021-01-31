@@ -341,6 +341,10 @@
 						<configuration>
 							<programs>
 								<program>
+									<mainClass>edu.isi.vista.annotationutils.RunRestoreJsonKt</mainClass>
+									<id>restoreJson</id>
+								</program>
+								<program>
 									<mainClass>edu.isi.vista.annotationutils.PushAnnotationsKt</mainClass>
 									<id>pushAnnotations</id>
 								</program>
