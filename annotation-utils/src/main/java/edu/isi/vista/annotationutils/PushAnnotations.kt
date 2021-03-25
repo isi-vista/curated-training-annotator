@@ -133,22 +133,22 @@ fun main(argv: Array<String>) {
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
                 .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
-        if (params.getOptionalBoolean("restoreAce").or(params.isPresent("aceEngDataDirectory"))) {
+        if (params.getBoolean("restoreAce").and(params.isPresent("aceEngDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath
             )
         }
-        if (params.getOptionalBoolean("restoreCord19").or(params.isPresent("cord19DataDirectory"))) {
+        if (params.getBoolean("restoreCord19").and(params.isPresent("cord19DataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "cord19DataDirectory", params.getExistingDirectory("cord19DataDirectory").absolutePath
             )
         }
-        if (params.getOptionalBoolean("restoreRussian").or(params.isPresent("russianDataDirectory"))) {
+        if (params.getBoolean("restoreRussian").and(params.isPresent("russianDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "russianDataDirectory", params.getExistingDirectory("russianDataDirectory").absolutePath
             )
         }
-        if (params.getOptionalBoolean("restoreSpanish").or(params.isPresent("spanishDataDirectory"))) {
+        if (params.getBoolean("restoreSpanish").and(params.isPresent("spanishDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "spanishDataDirectory", params.getExistingDirectory("spanishDataDirectory").absolutePath
             ).set("spanishIndexDirectory", params.getExistingDirectory("spanishIndexDirectory").absolutePath)

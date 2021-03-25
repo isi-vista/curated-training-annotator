@@ -7,11 +7,15 @@ compressOutput: false
 zipExportRoot: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-vistanlp/data/exported
 
 restoreJson: false
+restoreAce: false
 aceEngDataDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/corpora/ace_2005_td_v7_LDC2006T06/data/English
+restoreCord19: false
 cord19DataDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/corpora/2020-03-13
 gigawordDataDirectory: /Users/isiboston/Documents/LDC/giga/gigaword_eng_5/data/
 indexDirectory: /Users/isiboston/Documents/LDC/giga/indices/
+restoreRussian: true
 russianDataDirectory: /Users/isiboston/Documents/LDC/ltf/LDC2016E94_LORELEI_Russian_Representative_Language_Pack_Monolingual_Text_V1
+restoreSpanish: true
 spanishDataDirectory: /Users/isiboston/Documents/LDC/giga/spa_gw_3/data/
 spanishIndexDirectory: /Users/isiboston/Documents/LDC/giga/indices/spa/
 restoredJsonDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/data/restored
