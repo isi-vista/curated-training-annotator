@@ -63,16 +63,16 @@ class RestoreJson {
         fun restore(params: Parameters) {
             val inputJsonDirectory = params.getExistingDirectory("inputJsonDirectory")!!
             val outputDirectory = params.getCreatableDirectory("restoredJsonDirectory")!!
-            val restoreAce = params.getOptionalBoolean("restoreAce").or(
+            val restoreAce = params.getBoolean("restoreAce").and(
                     params.isPresent("aceEngDataDirectory")
             )
-            val restoreCord19 = params.getOptionalBoolean("restoreCord19").or(
+            val restoreCord19 = params.getBoolean("restoreCord19").and(
                     params.isPresent("cord19DataDirectory")
             )
-            val restoreRussian = params.getOptionalBoolean("restoreRussian").or(
+            val restoreRussian = params.getBoolean("restoreRussian").and(
                     params.isPresent("russianDataDirectory")
             )
-            val restoreSpanish = params.getOptionalBoolean("restoreSpanish").or(
+            val restoreSpanish = params.getBoolean("restoreSpanish").and(
                     params.isPresent("spanishDataDirectory")
             )
 
