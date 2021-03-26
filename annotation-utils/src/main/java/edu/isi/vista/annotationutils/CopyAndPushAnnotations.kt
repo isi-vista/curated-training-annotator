@@ -71,15 +71,12 @@ fun main(argv: Array<String>) {
         // Handle exported data
         val pushExport = params.getBoolean("pushExport")
         if (pushExport) {
-            val exportSource = File(params.getExistingDirectory("exportSource").absolutePath)
-            val exportDestination = File(params.getOptionalCreatableDirectory("exportDestination")
-                    .or(File("$localWorkingCopyDirectory/data/exported")).absolutePath)
-            val zipExport = params.getBoolean("zipExport")
             copyProjectFiles(
-                    zipToDestination = zipExport,
+                    zipToDestination = params.getBoolean("zipExport"),
                     dryRun = dryRun,
-                    projectSource = exportSource,
-                    projectDestination = exportDestination
+                    projectSource = File(params.getExistingDirectory("exportSource").absolutePath),
+                    projectDestination = File(params.getOptionalCreatableDirectory("exportDestination")
+                        .or(File("$localWorkingCopyDirectory/data/exported")).absolutePath)
             )
         }
 
@@ -110,15 +107,12 @@ fun main(argv: Array<String>) {
         // Handle FlexNLP files
         val pushFlexNLP = params.getBoolean("pushFlexNLP")
         if (pushFlexNLP) {
-            val flexNLPSource = File(params.getExistingDirectory("flexNLPSource").absolutePath)
-            val flexNLPDestination = File(params.getOptionalCreatableDirectory("flexNLPDestination")
-                    .or(File("$localWorkingCopyDirectory/data/flexnlp_pickled")).absolutePath)
-            val zipFlexNLP = params.getBoolean("zipFlexNLP")
             copyProjectFiles(
-                    zipToDestination = zipFlexNLP,
+                    zipToDestination = params.getBoolean("zipFlexNLP"),
                     dryRun = dryRun,
-                    projectSource = flexNLPSource,
-                    projectDestination = flexNLPDestination
+                    projectSource = File(params.getExistingDirectory("flexNLPSource").absolutePath),
+                    projectDestination = File(params.getOptionalCreatableDirectory("flexNLPDestination")
+                        .or(File("$localWorkingCopyDirectory/data/flexnlp_pickled")).absolutePath)
             )
         }
 
