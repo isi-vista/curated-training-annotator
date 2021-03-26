@@ -344,6 +344,10 @@
 									<mainClass>edu.isi.vista.annotationutils.PushAnnotationsKt</mainClass>
 									<id>pushAnnotations</id>
 								</program>
+								<program>
+									<mainClass>edu.isi.vista.annotationutils.CopyAndPushAnnotationsKt</mainClass>
+									<id>copyAndPushAnnotations</id>
+								</program>
 							</programs>
 						</configuration>
 					</plugin>

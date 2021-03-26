@@ -375,14 +375,14 @@ fun hasCTEventSpan(jsonObjectNode: ObjectNode): Boolean {
 /**
  * Create zip archives for each project
  */
-fun zipProject(exportedProjectDir: File, zipDir: Path) {
-    val projectName = exportedProjectDir.name
+fun zipProject(sourceProjectDir: File, zipDir: Path) {
+    val projectName = sourceProjectDir.name
     val zipOutputPath = zipDir.resolve("$projectName.zip")
     logger.info { "Compressing project to $zipOutputPath" }
     val zipOutputStream = ZipOutputStream(
             BufferedOutputStream(Files.newOutputStream(zipOutputPath))
     )
-    exportedProjectDir.walk().filter { it.isFile }.forEach { projectFile ->
+    sourceProjectDir.walk().filter { it.isFile }.forEach { projectFile ->
         val projectFilePath = projectFile.toPath()
         zipOutputStream.putNextEntry(ZipEntry("$projectName/${projectFile.name}"))
         Files.copy(projectFilePath, zipOutputStream)

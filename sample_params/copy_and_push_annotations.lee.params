@@ -1,0 +1,13 @@
+project_root: /Users/isiboston/Documents/projects/gaia/curatedTraining
+
+repoToPushTo: git@github.com:isi-vista/curated-training-annotation.git
+localWorkingCopyDirectory: /Users/isiboston/Documents/projects/gaia/curatedTraining/repos/curated-training-annotation
+dryRun: true
+
+pushExport: true
+exportSource: %project_root%/data/exported
+zipExport: true
+pushStats: true
+statsSource: %project_root%/repos/curated-training-vistanlp/data
+pushFlexNLP: false
+
