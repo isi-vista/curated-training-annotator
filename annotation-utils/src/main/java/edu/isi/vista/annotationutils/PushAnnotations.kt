@@ -267,10 +267,10 @@ fun main(argv: Array<String>) {
  * `localWorkingCopyDirectory`
  */
 fun setUpRepository(localWorkingCopyDirectory: File, repoToPushTo: String): Git {
-    if (localWorkingCopyDirectory.isDirectory()) {
+    if (localWorkingCopyDirectory.isDirectory) {
         val git = Git.open(localWorkingCopyDirectory)
-        val workingCopyRemoteUrl = git.getRepository()
-                .getConfig()
+        val workingCopyRemoteUrl = git.repository
+                .config
                 .getString("remote", "origin", "url")
 
         if (workingCopyRemoteUrl != repoToPushTo){
@@ -279,11 +279,11 @@ fun setUpRepository(localWorkingCopyDirectory: File, repoToPushTo: String): Git 
         }
 
         val status = git.status().call()
-        if (!status.isClean()) {
+        if (!status.isClean) {
             throw RuntimeException("$localWorkingCopyDirectory has been modified locally.")
         }
 
-        val currentBranch = git.getRepository().getBranch()
+        val currentBranch = git.repository.branch
         if (currentBranch != "master") {
             throw RuntimeException("$localWorkingCopyDirectory is not on the master branch.")
         }
@@ -339,15 +339,15 @@ fun pushUpdatedAnnotations(git: Git) {
     val status = git.status().call()
 
     // A clean status indicates no updates
-    if (!status.isClean()) {
+    if (!status.isClean) {
         val currentDate = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val formatter = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
 
         git.add().addFilepattern("data/").call()
         git.commit()
-                .setMessage("includes annotations through ${currentDate.getTime()}").call()
-        val tag = git.tag().setName(formatter.format(currentDate.getTime())).call()
+                .setMessage("includes annotations through ${currentDate.time}").call()
+        val tag = git.tag().setName(formatter.format(currentDate.time)).call()
         logger.info {"Pushing updated data"}
         // This first push ensures that the tag gets pushed along with the commit
         git.push().add(tag)
@@ -358,7 +358,7 @@ fun pushUpdatedAnnotations(git: Git) {
                 .call()
         val pushResult = iterable.iterator().next()
         val pushUpdate = pushResult.getRemoteUpdate("refs/heads/master")
-        val pushStatus = pushUpdate.getStatus()
+        val pushStatus = pushUpdate.status
         if (pushStatus == RemoteRefUpdate.Status.OK) {
             logger.info {"Push was successful"}
         } else {

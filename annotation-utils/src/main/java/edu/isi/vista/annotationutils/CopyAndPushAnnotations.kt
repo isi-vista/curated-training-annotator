@@ -25,7 +25,7 @@ import java.io.File
  *     <ul>
  *         <li>`exportSource` (path): the directory where the export data is saved </li>
  *         <li>`exportDestination` (optional path): the directory where the export
- *         data will be copied to; default is `<pathToLocalRepo>/data/exported` </li>
+ *         data will be copied to; default is `<localWorkingCopyDirectory>/data/exported` </li>
  *         <li>`zipExport` (boolean): if true, the export data will be zipped and moved
  *         to the exportDestination; else, it will be copied as-is </li>
  *     </ul></li>
@@ -34,9 +34,9 @@ import java.io.File
  *     given repository. This includes the subdirectories `annotation-statistics`,
  *     `indicator-searches`, and `time-reports`. The following will be needed:
  *     <ul>
- *         <li>`statsSource` (path): the directory where the statistics are saved </li>
- *         <li>`statsDestination` (optional path): the directory where the export
- *         data will be copied to; default is `<pathToLocalRepo>/data` </li>
+ *         <li>`statsSource` (path): the directory containing the statistics subdirectories </li>
+ *         <li>`statsDestination` (optional path): the directory where the statistics
+ *         data will be copied to; default is `<localWorkingCopyDirectory>/data` </li>
  *     </ul></li>
  *
  *     <li>`pushFlexNLP` (boolean) if true, the program will copy FlexNLP data to the
@@ -44,7 +44,7 @@ import java.io.File
  *     <ul>
  *         <li>`flexNLPSource` (path): the directory where the FlexNLP data is saved </li>
  *         <li>`flexNLPDestination` (optional path): the directory where the FlexNLP
- *         data will be copied to; default is `<pathToLocalRepo>/data/flexnlp_pickled` </li>
+ *         data will be copied to; default is `<localWorkingCopyDirectory>/data/flexnlp_pickled` </li>
  *         <li>`zipFlexNLP` (boolean): if true, the FlexNLP data will be zipped and
  *         moved to the flexNLPDestination; else, it will be copied as-is </li>
  *     </ul></li>
@@ -66,62 +66,63 @@ fun main(argv: Array<String>) {
     val localWorkingCopyDirectory = File(params.getString("localWorkingCopyDirectory"))
     val dryRun = params.getOptionalBoolean("dryRun").or(false)
 
-    // Handle exported data
-    val pushExport = params.getBoolean("pushExport")
-    if (pushExport) {
-        val exportSource = File(params.getExistingDirectory("exportSource").absolutePath)
-        val exportDestination = File(params.getOptionalCreatableDirectory("exportDestination")
-                .or(File("$localWorkingCopyDirectory/data/exported")).absolutePath)
-        val zipExport = params.getBoolean("zipExport")
-        copyProjectFiles(
-                zipToDestination = zipExport,
-                dryRun = dryRun,
-                projectSource = exportSource,
-                projectDestination = exportDestination
-        )
-    }
+    setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
 
-    // Handle statistics files
-    val pushStats = params.getBoolean("pushStats")
-    val statsDirs = listOf("annotation-statistics", "indicator-searches", "time-reports")
-    if (pushStats) {
-        val statsSource = params.getExistingDirectory("statsSource").absolutePath
-        val statsDestination = params.getOptionalCreatableDirectory("statsDestination")
-                .or(File("$localWorkingCopyDirectory/data")).absolutePath
-        for (statsDir in statsDirs) {
-            val fullStatsDir = "$statsSource/$statsDir"
-            if (dryRun) {
-                logCopyInfo(
-                        false, File(fullStatsDir), File("$statsDestination/$statsDir")
-                )
-            } else {
-                if (File(fullStatsDir).exists()) {
-                    File(fullStatsDir)
-                            .copyRecursively(File("$statsDestination/$statsDir"))
+        // Handle exported data
+        val pushExport = params.getBoolean("pushExport")
+        if (pushExport) {
+            val exportSource = File(params.getExistingDirectory("exportSource").absolutePath)
+            val exportDestination = File(params.getOptionalCreatableDirectory("exportDestination")
+                    .or(File("$localWorkingCopyDirectory/data/exported")).absolutePath)
+            val zipExport = params.getBoolean("zipExport")
+            copyProjectFiles(
+                    zipToDestination = zipExport,
+                    dryRun = dryRun,
+                    projectSource = exportSource,
+                    projectDestination = exportDestination
+            )
+        }
+
+        // Handle statistics files
+        val pushStats = params.getBoolean("pushStats")
+        val statsDirs = listOf("annotation-statistics", "indicator-searches", "time-reports")
+        if (pushStats) {
+            val statsSource = params.getExistingDirectory("statsSource").absolutePath
+            val statsDestination = params.getOptionalCreatableDirectory("statsDestination")
+                    .or(File("$localWorkingCopyDirectory/data")).absolutePath
+            for (statsDir in statsDirs) {
+                val fullStatsDir = "$statsSource/$statsDir"
+                if (dryRun) {
+                    logCopyInfo(
+                            false, File(fullStatsDir), File("$statsDestination/$statsDir")
+                    )
                 } else {
-                    logger.warn { "$fullStatsDir does not exist; skipping copy" }
+                    if (File(fullStatsDir).exists()) {
+                        File(fullStatsDir)
+                                .copyRecursively(File("$statsDestination/$statsDir"), overwrite = true)
+                    } else {
+                        logger.warn { "$fullStatsDir does not exist; skipping copy" }
+                    }
                 }
             }
         }
-    }
 
-    // Handle FlexNLP files
-    val pushFlexNLP = params.getBoolean("pushFlexNLP")
-    if (pushFlexNLP) {
-        val flexNLPSource = File(params.getExistingDirectory("flexNLPSource").absolutePath)
-        val flexNLPDestination = File(params.getOptionalCreatableDirectory("flexNLPDestination")
-                .or(File("$localWorkingCopyDirectory/data/flexnlp_pickled")).absolutePath)
-        val zipFlexNLP = params.getBoolean("zipFlexNLP")
-        copyProjectFiles(
-                zipToDestination = zipFlexNLP,
-                dryRun = dryRun,
-                projectSource = flexNLPSource,
-                projectDestination = flexNLPDestination
-        )
-    }
+        // Handle FlexNLP files
+        val pushFlexNLP = params.getBoolean("pushFlexNLP")
+        if (pushFlexNLP) {
+            val flexNLPSource = File(params.getExistingDirectory("flexNLPSource").absolutePath)
+            val flexNLPDestination = File(params.getOptionalCreatableDirectory("flexNLPDestination")
+                    .or(File("$localWorkingCopyDirectory/data/flexnlp_pickled")).absolutePath)
+            val zipFlexNLP = params.getBoolean("zipFlexNLP")
+            copyProjectFiles(
+                    zipToDestination = zipFlexNLP,
+                    dryRun = dryRun,
+                    projectSource = flexNLPSource,
+                    projectDestination = flexNLPDestination
+            )
+        }
 
-    if (!dryRun) {
-        setUpRepository(localWorkingCopyDirectory, repoToPushTo).use { git ->
+        if (!dryRun) {
             pushUpdatedAnnotations(git)
         }
     }
@@ -149,7 +150,7 @@ fun copyProjectFiles(
         if (dryRun) {
             logCopyInfo(false, projectSource, projectDestination)
         } else {
-            projectSource.copyRecursively(projectDestination)
+            projectSource.copyRecursively(projectDestination, overwrite = true)
         }
     }
 }
