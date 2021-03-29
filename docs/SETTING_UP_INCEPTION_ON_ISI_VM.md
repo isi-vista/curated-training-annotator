@@ -1,11 +1,30 @@
-## Setting up Inception on an ISI Virtual Machine
+# Setting up Inception on an ISI Virtual Machine
 
-The directions at https://inception-project.github.io/releases/0.15.2/docs/admin-guide.html assume you are using Ubuntu, 
+The directions at https://inception-project.github.io/releases/0.19.1/docs/admin-guide.html assume you are using Ubuntu, 
 but our VMs run CentOS.  
 
 This document will describe any necessary adaptations.
 
-# Install Java
+## Install Java
+### Java 11 (recommended)
+
+Install Java 11 through `yum` like so:
+```
+sudo yum install java-11-openjdk-devel
+```
+
+If upgrading from Java 8, after installing Java 11, change the default
+Java version by running
+ ```
+ sudo alternatives --config java
+ ```
+Then simply enter the number associated with the Java 11 installation.
+Afterwards, double-check the Java version with
+```
+java -version
+```
+
+### Java 8 (INCEpTION versions <= 0.17.3)
 
 Replace the Inception documentation with the following (from https://www.digitalocean.com/community/tutorials/how-to-install-java-on-centos-and-fedora):
 
@@ -21,7 +40,7 @@ wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2F
 sudo yum install jdk-8u202-linux-x64.rpm
 ```
 
-# Install `mysql`
+## Install `mysql`
 
 ```
 wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
@@ -55,7 +74,7 @@ GRANT ALL PRIVILEGES ON inception.* TO 'inception'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-# Make a `www-data` user
+## Make a `www-data` user
 
 At least ISI's VMs don't have it by default:
 
@@ -63,7 +82,7 @@ At least ISI's VMs don't have it by default:
 sudo adduser www-data
 ```
 
-# Set up `Inception` directory
+## Set up `Inception` directory
 
 ```
 sudo mkdir /srv/inception
@@ -95,7 +114,7 @@ remote-api.enabled=true
 sudo chown -R www-data /srv/inception
 ```
 
-# Set up Maven
+## Set up Maven
 
 This is so we can build Inception because we want to run a newer version than their last stable release.
 The version of Maven installable via `yum` on CentOS is too old (as of this writing), so we install manually:
@@ -107,7 +126,7 @@ tar xzvf apache-maven-3.6.3-bin.tar.gz
 Then add `apache-maven-3.6.3/bin` to your `PATH`
 
 
-# Set up git and build Inception
+## Set up git and build Inception
 This is just because we want to run from the GitHub `master` branch and not a stable release.
 ```
 sudo yum install git
@@ -131,14 +150,14 @@ Then
 sudo chown root:root /srv/inception/inception.conf
 ```
 
-# Set Inception to run at startup
+## Set Inception to run at startup
 ```
 sudo ln -s /srv/inception/inception.jar /etc/init.d/inception
 sudo systemctl enable inception
 ```
 
 
-# How to sync Inception with the main repository
+## How to sync Inception with the main repository
 
 You will need to use `sudo` for most or all of these commands. 
 From the Inception working copy's `master` branch:
@@ -152,50 +171,56 @@ systemctl restart inception
 
 We skip the tests because they are time consuming and we assume Inception's CI has already run them.
 
-# How to inspect the Inception logs for errors
+## How to inspect the Inception logs for errors
 
 ```
 sudo less /var/log/inception.log
 ```
 
-# How to restart Inception
+## How to restart Inception
 
 ```
 sudo systemctl restart inception
 ```
 
-# Update Inception
+## Update Inception
 
-Official documentation: https://inception-project.github.io/releases/0.15.2/docs/admin-guide.html#sect_upgrade
+Official documentation: https://inception-project.github.io/releases/0.19.1/docs/admin-guide.html#sect_upgrade
 
-## Create backups
+### Create backups
 Before you begin the upgrade, you'll want to create backups in case the upgrade doesn't
 go as planned. Your backup files should consist of the Inception
 home directory and the SQL databases.
 
-1. Copy the home directory (`/srv/inception`) to `/nas/gaia/curated-training/inception_backups`.
+1. Copy the home directory (`/srv/inception`) to `/nas/gaia/curated-training/inception_backups` like so:
+   ```
+   rsync -r /srv/inception/ <user>@gaiadev01:/nas/gaia/curated-training/inception_backups/<date>
+   ```
 2. Create a backup of the Inception databases by running
+   ```
+   mysqldump -u root -p --result-file=inception_db_dump.sql --all-databases
+   ```
+   This will prompt you for `root`'s MySQL password. If you don't have it, ask one of the admins.
 
-  ```
-  mysqldump -u root -p --result-file=inception_db_dump.sql --all-databases
-  ```
-
-This will prompt you for `root`'s MySQL password. If you don't have it, ask one of the admins.
-
-## Update
+### Update
 Reminder: you may need to use `sudo` for most of these commands.
-```
-cd /home/[username]/inception
-checkout the branch or otherwise put the git repo in the state you want
-mvn clean install -DskipTests=true
-cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
-sudo systemctl restart inception
-```
-You may receive a warning that `inception.service` changed on the disk. In this case, run
-```
-systemctl daemon-reload
-systemctl restart inception
-```
+
+1. Build the desired version of Inception.
+    ```
+    cd /home/[username]/inception
+    checkout the branch or otherwise put the git repo in the state you want
+    mvn clean install -DskipTests=true
+    ```
+2. Stop the Inception service.
+    ```
+    sudo systemctl stop inception
+    ```
+3. Replace the old `.jar` file with the new one, then start Inception again.
+    ```
+    cp inception-app-webapp/target/inception-app-standalone-<CURRENT_VERISON_FILL_ME_IN>-SNAPSHOT.jar /srv/inception/inception.jar
+    sudo systemctl daemon-reload
+    sudo systemctl start inception
+    ```
 Rebooting Inception may take a while, so it's normal for the server to be unreachable for a few
 minutes.
 
