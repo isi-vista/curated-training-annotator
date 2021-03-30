@@ -127,28 +127,36 @@ fun main(argv: Array<String>) {
 
     // Build params for restoring the original text
     val restoreJson = params.getOptionalBoolean("restoreJson").or(false)
+    val restoreAce = params.getBoolean("restoreAce")
+    val restoreCord19 = params.getBoolean("restoreCord19")
+    val restoreRussian = params.getBoolean("restoreRussian")
+    val restoreSpanish = params.getBoolean("restoreSpanish")
     val restoreJsonParams = if (restoreJson) {
         val restoreJsonParamsBuilder = Parameters.builder()
                 .set("indexDirectory", params.getExistingDirectory("indexDirectory").absolutePath)
                 .set("gigawordDataDirectory", params.getExistingDirectory("gigawordDataDirectory").absolutePath)
                 .set("inputJsonDirectory", exportedAnnotationRoot)
                 .set("restoredJsonDirectory", params.getCreatableDirectory("restoredJsonDirectory").absolutePath)
-        if (params.getBoolean("restoreAce").and(params.isPresent("aceEngDataDirectory"))) {
+            .set("restoreAce", restoreAce.toString())
+            .set("restoreCord19", restoreCord19.toString())
+            .set("restoreRussian", restoreRussian.toString())
+            .set("restoreSpanish", restoreSpanish.toString())
+        if (restoreAce.and(params.isPresent("aceEngDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "aceEngDataDirectory", params.getExistingDirectory("aceEngDataDirectory").absolutePath
             )
         }
-        if (params.getBoolean("restoreCord19").and(params.isPresent("cord19DataDirectory"))) {
+        if (restoreCord19.and(params.isPresent("cord19DataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "cord19DataDirectory", params.getExistingDirectory("cord19DataDirectory").absolutePath
             )
         }
-        if (params.getBoolean("restoreRussian").and(params.isPresent("russianDataDirectory"))) {
+        if (restoreRussian.and(params.isPresent("russianDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "russianDataDirectory", params.getExistingDirectory("russianDataDirectory").absolutePath
             )
         }
-        if (params.getBoolean("restoreSpanish").and(params.isPresent("spanishDataDirectory"))) {
+        if (restoreSpanish.and(params.isPresent("spanishDataDirectory"))) {
             restoreJsonParamsBuilder.set(
                     "spanishDataDirectory", params.getExistingDirectory("spanishDataDirectory").absolutePath
             ).set("spanishIndexDirectory", params.getExistingDirectory("spanishIndexDirectory").absolutePath)

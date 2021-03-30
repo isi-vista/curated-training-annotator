@@ -107,6 +107,7 @@ class ExtractAnnotationStats {
             // Convert values to json
             val jsonStatsReport = StatsReport(File(statisticsDirectory, "StatsReport$thisDate.json"), thisDate)
             statsToJSON(jsonStatsReport, newAnnotationStats)
+            logger.info {"Stats extraction complete!"}
         }
 
         /**
